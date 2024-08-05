@@ -1,3 +1,4 @@
+
 // src/app/page.js
 "use client";
 
@@ -11,7 +12,8 @@ const Home = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLoan, setCurrentLoan] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [sortConfig, setSortConfig] = useState({ key: 'loanName', direction: 'ascending' });
+  const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'ascending' });
+  const [strategy, setStrategy] = useState('Order Entered In Table'); // Default strategy
 
   useEffect(() => {
     const fetchLoans = async () => {
@@ -97,19 +99,24 @@ const Home = () => {
 
   const handlePriorityChange = async (id, newPriority) => {
     try {
-      await fetch(`/api/loans/${id}`, {
+      const response = await fetch(`/api/loans/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ priority: newPriority }),
+        body: JSON.stringify({ priority: Number(newPriority) }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to update priority');
+      }
+
+      const result = await response.json();
       setLoans(loans.map((loan) => (loan.id === id ? { ...loan, priority: newPriority } : loan)));
     } catch (error) {
       console.error('Error updating priority:', error);
     }
   };
-
 
   const getSortableValue = (loan, key) => {
     switch (key) {
@@ -121,8 +128,11 @@ const Home = () => {
   };
 
   const sortedLoans = [...loans].sort((a, b) => {
-    const aValue = getSortableValue(a, sortConfig.key);
-    const bValue = getSortableValue(b, sortConfig.key);
+    let aValue = getSortableValue(a, sortConfig.key);
+    let bValue = getSortableValue(b, sortConfig.key);
+
+    // code here please 
+
 
     if (aValue < bValue) {
       return sortConfig.direction === 'ascending' ? -1 : 1;
@@ -133,25 +143,38 @@ const Home = () => {
     return 0;
   });
 
-
-
-
   return (
     <>
       <div className="w-full max-w-full overflow-x-auto">
         <div className="flex justify-between px-12">
           <h2 className="text-2xl font-bold mb-4">Loan List</h2>
-          <button
-            onClick={() => openModal()}
-            className="bg-blue-500 text-white px-4 py-2 rounded-md mb-4"
-          >
-            Add Loan
-          </button>
+
+          <div className="mb-4">
+            <button
+              onClick={() => openModal()}
+              className="bg-blue-500 text-white px-4 py-2 rounded-md mb-4"
+            >
+              Add Loan
+            </button>
+            <label htmlFor="strategy" className="mr-2 pl-8">Strategy:</label>
+            <select
+              id="strategy"
+              value={strategy}
+              onChange={(e) => setStrategy(e.target.value)}
+              className="border border-gray-300 p-2 rounded">
+              <option value="1d">Default (Recommended) </option>
+              <option value="2a">Avalanche (Highest Interest First)</option>
+              <option value="3s">Snowball (Lowest Balance First)</option>
+              <option value="4h">Highest Priority First </option>
+              <option value="5l">Lowest Priority First </option>
+            </select>
+          </div>
         </div>
         <div>
           <table className="min-w-full bg-white border text-sm break-normal">
             <thead>
               <tr>
+                <th className="border px-4 py-2 w-16">#</th> {/* Serial Number Column */}
                 <th className="border px-4 py-2 w-56 cursor-pointer" onClick={() => handleSort('loanName')}>
                   Loan Name
                   {sortConfig.key === 'loanName' ? (
@@ -178,7 +201,8 @@ const Home = () => {
                 </th>
                 <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('emiAmount')}>
                   EMI Amount/Minimum Monthly Pay
-                  {sortConfig.key === 'emiAmount' ? (sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
+                  {sortConfig.key === 'emiAmount' ? (
+                    sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
                   ) : <FaSort className="inline ml-2" />}
                 </th>
                 <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('loanStartDate')}>
@@ -197,8 +221,9 @@ const Home = () => {
               </tr>
             </thead>
             <tbody>
-              {sortedLoans.map((loan) => (
+              {sortedLoans.map((loan, index) => (
                 <tr key={loan.id}>
+                  <td className="border px-4 py-2">{loan.id}</td> {/* Serial Number Column */}
                   <td className="border px-4 py-2">
                     <Link href={`/loans/${loan.id}`}>
                       {loan.loanName}
@@ -206,7 +231,9 @@ const Home = () => {
                   </td>
                   <td className="border px-4 py-2">{loan.loanAmount}</td>
                   <td className="border px-4 py-2">{loan.annualInterestRate}</td>
-                  <td className="border px-4 py-2">{calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount)}</td>
+                  <td className="border px-4 py-2">
+                    {calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount)}
+                  </td>
                   <td className="border px-4 py-2">{loan.emiAmount}</td>
                   <td className="border px-4 py-2">{formatDate(loan.loanStartDate)}</td>
                   <td className="border px-4 py-2">
@@ -217,7 +244,7 @@ const Home = () => {
                       className="w-full border border-gray-300 p-1 rounded"
                     />
                   </td>
-                  <td className="border border-red-900 px-4 py-2 w-36">
+                  <td className="border px-4 py-2 w-36">
                     <button
                       onClick={() => openModal(loan)}
                       className="bg-yellow-500 text-white px-2 py-1 rounded-md mr-2 w-14 break-keep"

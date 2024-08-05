@@ -20,4 +20,5 @@ model Loan {
   annualInterestRate Float
   emiAmount          Float?
   loanStartDate      DateTime?
+  priority           Int?      @default(0)
 }

@@ -19,7 +19,8 @@ export async function POST(req) {
         loanAmount,
         annualInterestRate,
         emiAmount,
-        loanStartDate
+        loanStartDate,
+        priority
     } = payload;
 
     // Check for required fields
@@ -35,6 +36,7 @@ export async function POST(req) {
             annualInterestRate: parseFloat(annualInterestRate),
             emiAmount: parseFloat(emiAmount),
             loanStartDate: new Date(loanStartDate),
+            priority: parseInt(priority),
         }
     });
 
