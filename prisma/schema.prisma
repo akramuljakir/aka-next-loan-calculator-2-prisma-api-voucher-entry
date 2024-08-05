@@ -15,10 +15,11 @@ datasource db {
 
 model Loan {
   id                 Int       @id @default(autoincrement())
-  loanName           String
+  loanName           String    @default("Loan")
   loanAmount         Float
   annualInterestRate Float
-  emiAmount          Float?
+  emiAmount          Float?    @default(0)
   loanStartDate      DateTime?
   priority           Int?      @default(0)
+  minimumPay         Float?    @default(0)
 }

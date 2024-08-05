@@ -20,7 +20,8 @@ export async function POST(req) {
         annualInterestRate,
         emiAmount,
         loanStartDate,
-        priority
+        priority,
+        minimumPay
     } = payload;
 
     // Check for required fields
@@ -29,15 +30,20 @@ export async function POST(req) {
     }
 
     // Create a new loan entry
+    const data = {
+        loanName,
+        loanAmount: parseFloat(loanAmount),
+        annualInterestRate: parseFloat(annualInterestRate),
+        loanStartDate: new Date(loanStartDate),
+    };
+
+    // Add optional fields if they are truthy
+    if (emiAmount) data.emiAmount = parseFloat(emiAmount);
+    if (priority) data.priority = parseInt(priority);
+    if (minimumPay) data.minimumPay = parseFloat(minimumPay);
+
     const loan = await prisma.loan.create({
-        data: {
-            loanName,
-            loanAmount: parseFloat(loanAmount),
-            annualInterestRate: parseFloat(annualInterestRate),
-            emiAmount: parseFloat(emiAmount),
-            loanStartDate: new Date(loanStartDate),
-            priority: parseInt(priority),
-        }
+        data
     });
 
     return NextResponse.json({ result: loan }, { status: 200 });

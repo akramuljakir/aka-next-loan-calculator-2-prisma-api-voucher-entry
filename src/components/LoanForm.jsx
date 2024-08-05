@@ -11,6 +11,7 @@ const LoanForm = ({ loan, onSave, onClose }) => {
         loanStartDate: '',
     });
     const [errors, setErrors] = useState({});
+    const [monthlyInterest, setMonthlyInterest] = useState(0);
 
     // Function to format date into YYYY-MM-DD
     const formatDate = (date) => {
@@ -38,6 +39,20 @@ const LoanForm = ({ loan, onSave, onClose }) => {
         }
     }, [loan]);
 
+    // Recalculate monthly interest whenever loanAmount or annualInterestRate changes
+    useEffect(() => {
+        const amount = parseFloat(loanForm.loanAmount);
+        const annualRate = parseFloat(loanForm.annualInterestRate);
+
+        if (!isNaN(amount) && !isNaN(annualRate) && amount > 0 && annualRate > 0) {
+            const monthlyInterestRate = annualRate / 12 / 100;
+            const interest = amount * monthlyInterestRate;
+            setMonthlyInterest(interest.toFixed(2));
+        } else {
+            setMonthlyInterest(0);
+        }
+    }, [loanForm.loanAmount, loanForm.annualInterestRate]);
+
     // Handle form input changes
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -50,20 +65,8 @@ const LoanForm = ({ loan, onSave, onClose }) => {
         let newErrors = {};
         let isValid = true;
 
-        if (emiAmount <= 0) {
-            newErrors.emiAmount = 'EMI amount must be greater than zero.';
-            isValid = true;
-        }
-
-        const monthlyInterestRate = parseFloat(annualInterestRate) / 12 / 100;
-        const interest = parseFloat(loanAmount) * monthlyInterestRate;
-
-        if (emiAmount <= interest) {
-            newErrors.emiAmount = 'EMI amount must be greater than the monthly interest. ' + interest.toFixed(2);
-            isValid = true;
-        }
-
-        if (parseFloat(loanAmount) <= emiAmount) {
+        // Validation logic
+        if (parseFloat(loanAmount) <= parseFloat(emiAmount)) {
             newErrors.loanAmount = 'Loan amount must be greater than the EMI amount.';
             isValid = false;
         }
@@ -99,7 +102,7 @@ const LoanForm = ({ loan, onSave, onClose }) => {
                     <div>
                         <label className="block">Loan Amount:</label>
                         <input
-                            type="number"
+                            type="text"
                             name="loanAmount"
                             value={loanForm.loanAmount}
                             onChange={handleInputChange}
@@ -110,7 +113,7 @@ const LoanForm = ({ loan, onSave, onClose }) => {
                     <div>
                         <label className="block">Annual Interest Rate:</label>
                         <input
-                            type="number"
+                            type="text"
                             name="annualInterestRate"
                             value={loanForm.annualInterestRate}
                             onChange={handleInputChange}
@@ -120,13 +123,16 @@ const LoanForm = ({ loan, onSave, onClose }) => {
                     <div>
                         <label className="block">EMI Amount:</label>
                         <input
-                            type="number"
+                            type="text"
                             name="emiAmount"
                             value={loanForm.emiAmount}
                             onChange={handleInputChange}
                             className="border p-2 w-full"
                         />
                         {errors.emiAmount && <p className="text-red-500 text-sm">{errors.emiAmount}</p>}
+                        {monthlyInterest > 0 && (
+                            <p className="text-gray-600 text-sm mt-2">Estimated Monthly Interest: {monthlyInterest}</p>
+                        )}
                     </div>
                     <div>
                         <label className="block">Loan Start Date:</label>

@@ -44,6 +44,7 @@ export async function PUT(req, { params }) {
     if (payload.emiAmount !== undefined) updateData.emiAmount = parseFloat(payload.emiAmount);
     if (payload.loanStartDate !== undefined) updateData.loanStartDate = new Date(payload.loanStartDate);
     if (payload.priority !== undefined) updateData.priority = parseInt(payload.priority);
+    if (payload.minimumPay !== undefined) updateData.minimumPay = parseFloat(payload.minimumPay);
 
     try {
         const loan = await prisma.loan.update({

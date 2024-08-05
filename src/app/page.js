@@ -219,7 +219,13 @@ const Home = () => {
                   ) : <FaSort className="inline ml-2" />}
                 </th>
                 <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('emiAmount')}>
-                  EMI Amount/Minimum Monthly Pay
+                  EMI Amount
+                  {sortConfig.key === 'emiAmount' ? (
+                    sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
+                  ) : <FaSort className="inline ml-2" />}
+                </th>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('emiAmount')}>
+                  Minimum Monthly Pay
                   {sortConfig.key === 'emiAmount' ? (
                     sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
                   ) : <FaSort className="inline ml-2" />}
@@ -251,14 +257,21 @@ const Home = () => {
                   <td className="border px-4 py-2">{loan.loanAmount}</td>
                   <td className="border px-4 py-2">{loan.annualInterestRate}</td>
                   <td className="border px-4 py-2">
-                    {calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount)}
+                    {calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount).toFixed(2)}
                   </td>
                   <td className="border px-4 py-2">{loan.emiAmount}</td>
+                  <td className="border px-4 py-2"><input
+                    type="text"
+                    value={loan.minimumPay}
+                    onChange={(e) => handlePriorityChange(loan.id, e.target.value)}
+                    className="w-full border border-gray-300 p-1 rounded"
+                  /></td>
+
                   <td className="border px-4 py-2">{formatDate(loan.loanStartDate)}</td>
                   <td className="border px-4 py-2">
                     <input
-                      type="number"
-                      value={loan.priority || 0}
+                      type="text"
+                      value={loan.priority}
                       onChange={(e) => handlePriorityChange(loan.id, e.target.value)}
                       className="w-full border border-gray-300 p-1 rounded"
                     />
