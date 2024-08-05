@@ -52,7 +52,7 @@ const LoanForm = ({ loan, onSave, onClose }) => {
 
         if (emiAmount <= 0) {
             newErrors.emiAmount = 'EMI amount must be greater than zero.';
-            isValid = false;
+            isValid = true;
         }
 
         const monthlyInterestRate = parseFloat(annualInterestRate) / 12 / 100;
@@ -60,7 +60,7 @@ const LoanForm = ({ loan, onSave, onClose }) => {
 
         if (emiAmount <= interest) {
             newErrors.emiAmount = 'EMI amount must be greater than the monthly interest. ' + interest.toFixed(2);
-            isValid = false;
+            isValid = true;
         }
 
         if (parseFloat(loanAmount) <= emiAmount) {

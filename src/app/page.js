@@ -75,13 +75,16 @@ const Home = () => {
     }
   };
 
-  // ---------------
-
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
-  // -----------------
+
+  const interest = (annualInterestRate, loanAmount) => {
+    const monthlyInterestRate = parseFloat(annualInterestRate) / 12 / 100;
+    const interest = parseFloat(loanAmount) * monthlyInterestRate;
+    return interest
+  }
 
   return (
     <>
@@ -95,16 +98,16 @@ const Home = () => {
           </button>
         </div>
         <div className="">
-          <table className="min-w-full bg-white border text-sm">
+          <table className="min-w-full bg-white border text-sm break-normal ">
             <thead>
               <tr>
                 <th className="border px-4 py-2 w-56">Loan Name</th>
                 <th className="border px-4 py-2 w-30">Loan Amount</th>
                 <th className="border px-4 py-2">Interest Rate</th>
-                <th className="border px-4 py-2">EMI Amount</th>
-                {/* <th className="border px-4 py-2">Current Balance</th>
-                <th className="border px-4 py-2">Months Left</th> */}
+                <th className="border px-4 py-2">Monthly Interest Amount</th>
+                <th className="border px-4 py-2">EMI Amount/ Minimum Monthly Pay</th>
                 <th className="border px-4 py-2">Start Date</th>
+                <th className="border px-4 py-2">Priority</th>
                 <th className="border px-4 py-2 w-44">Actions</th>
               </tr>
             </thead>
@@ -118,20 +121,20 @@ const Home = () => {
                   </td>
                   <td className="border px-4 py-2">{loan.loanAmount}</td>
                   <td className="border px-4 py-2">{loan.annualInterestRate}</td>
+                  <td className="border px-4 py-2">{interest(loan.annualInterestRate, loan.loanAmount)}</td>
                   <td className="border px-4 py-2">{loan.emiAmount}</td>
-                  {/* <td className="border px-4 py-2">{loan.currentBalance}</td> */}
-                  {/* <td className="border px-4 py-2">{loan.monthsLeft}</td> */}
                   <td className="border px-4 py-2">{formatDate(loan.loanStartDate)}</td>
-                  <td className="border px-4 py-2 w-36">
+                  <td className="border px-4 py-2">1</td>
+                  <td className="border border-red-900 px-4 py-2 w-36 ">
                     <button
                       onClick={() => openModal(loan)}
-                      className="bg-yellow-500 text-white px-2 py-1 rounded-md mr-2 w-14"
+                      className="bg-yellow-500 text-white px-2 py-1 rounded-md mr-2 w-14 break-keep"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => deleteLoan(loan.id)}
-                      className="bg-red-500 text-white px-2 py-1 rounded-md w-14"
+                      className="bg-red-500 text-white px-2 py-1 rounded-md w-14 break-keep"
                     >
                       Delete
                     </button>
@@ -155,3 +158,5 @@ const Home = () => {
 }
 
 export default Home;
+
+// i want short by Loan Name, Short By Loan Amount, Interest Rate, Monthly Interest Amount, EMI Amount/ Minimum Monthly Pay, Start Date, Priority
