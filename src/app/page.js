@@ -268,14 +268,49 @@ const Home = () => {
                   /></td>
 
                   <td className="border px-4 py-2">{formatDate(loan.loanStartDate)}</td>
+                  {/*  */}
                   <td className="border px-4 py-2">
-                    <input
-                      type="text"
-                      value={loan.priority}
-                      onChange={(e) => handlePriorityChange(loan.id, e.target.value)}
-                      className="w-full border border-gray-300 p-1 rounded"
-                    />
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => {
+                          const newValue = Math.max(Number(loan.priority) - 1, -10);
+                          handlePriorityChange(loan.id, newValue);
+                        }}
+                        className="text-gray-500 hover:text-blue-600 bg-gray-200 p-2 rounded-l-md"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 12H5"></path>
+                        </svg>
+                      </button>
+                      <input
+                        type="text"
+                        value={loan.priority}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          if (value >= -10 && value <= 20) {
+                            handlePriorityChange(loan.id, value);
+                          }
+                        }}
+                        className="w-20 border border-gray-300 rounded-md text-center py-2 mx-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        min="-50"
+                        max="50"
+                      />
+                      <button
+                        onClick={() => {
+                          const newValue = Math.min(Number(loan.priority) + 1, 20);
+                          handlePriorityChange(loan.id, newValue);
+                        }}
+                        className="text-gray-500 hover:text-blue-600 bg-gray-200 p-2 rounded-r-md"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v14m7-7H5"></path>
+                        </svg>
+                      </button>
+                    </div>
                   </td>
+
+
+                  {/*  */}
                   <td className="border px-4 py-2 w-36">
                     <button
                       onClick={() => openModal(loan)}
