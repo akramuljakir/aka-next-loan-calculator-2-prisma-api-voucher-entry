@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import LoanForm from '@/components/LoanForm';
 import Link from 'next/link';
+import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 
 const Home = () => {
   const [loans, setLoans] = useState([]);
@@ -94,6 +95,22 @@ const Home = () => {
     setSortConfig({ key, direction });
   };
 
+  const handlePriorityChange = async (id, newPriority) => {
+    try {
+      await fetch(`/api/loans/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ priority: newPriority }),
+      });
+      setLoans(loans.map((loan) => (loan.id === id ? { ...loan, priority: newPriority } : loan)));
+    } catch (error) {
+      console.error('Error updating priority:', error);
+    }
+  };
+
+
   const getSortableValue = (loan, key) => {
     switch (key) {
       case 'monthlyInterest':
@@ -116,6 +133,9 @@ const Home = () => {
     return 0;
   });
 
+
+
+
   return (
     <>
       <div className="w-full max-w-full overflow-x-auto">
@@ -132,13 +152,47 @@ const Home = () => {
           <table className="min-w-full bg-white border text-sm break-normal">
             <thead>
               <tr>
-                <th className="border px-4 py-2 w-56 cursor-pointer" onClick={() => handleSort('loanName')}>Loan Name</th>
-                <th className="border px-4 py-2 w-30 cursor-pointer" onClick={() => handleSort('loanAmount')}>Loan Amount</th>
-                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('annualInterestRate')}>Interest Rate</th>
-                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('monthlyInterest')}>Monthly Interest Amount</th>
-                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('emiAmount')}>EMI Amount/Minimum Monthly Pay</th>
-                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('loanStartDate')}>Start Date</th>
-                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('priority')}>Priority</th>
+                <th className="border px-4 py-2 w-56 cursor-pointer" onClick={() => handleSort('loanName')}>
+                  Loan Name
+                  {sortConfig.key === 'loanName' ? (
+                    sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
+                  ) : <FaSort className="inline ml-2" />}
+                </th>
+                <th className="border px-4 py-2 w-30 cursor-pointer" onClick={() => handleSort('loanAmount')}>
+                  Loan Amount
+                  {sortConfig.key === 'loanAmount' ? (
+                    sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
+                  ) : <FaSort className="inline ml-2" />}
+                </th>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('annualInterestRate')}>
+                  Interest Rate
+                  {sortConfig.key === 'annualInterestRate' ? (
+                    sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
+                  ) : <FaSort className="inline ml-2" />}
+                </th>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('monthlyInterest')}>
+                  Monthly Interest Amount
+                  {sortConfig.key === 'monthlyInterest' ? (
+                    sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
+                  ) : <FaSort className="inline ml-2" />}
+                </th>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('emiAmount')}>
+                  EMI Amount/Minimum Monthly Pay
+                  {sortConfig.key === 'emiAmount' ? (sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
+                  ) : <FaSort className="inline ml-2" />}
+                </th>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('loanStartDate')}>
+                  Start Date
+                  {sortConfig.key === 'loanStartDate' ? (
+                    sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
+                  ) : <FaSort className="inline ml-2" />}
+                </th>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('priority')}>
+                  Priority
+                  {sortConfig.key === 'priority' ? (
+                    sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
+                  ) : <FaSort className="inline ml-2" />}
+                </th>
                 <th className="border px-4 py-2 w-44">Actions</th>
               </tr>
             </thead>
@@ -155,8 +209,15 @@ const Home = () => {
                   <td className="border px-4 py-2">{calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount)}</td>
                   <td className="border px-4 py-2">{loan.emiAmount}</td>
                   <td className="border px-4 py-2">{formatDate(loan.loanStartDate)}</td>
-                  <td className="border px-4 py-2">{loan.priority || 1}</td>
-                  <td className="border px-4 py-2 w-36">
+                  <td className="border px-4 py-2">
+                    <input
+                      type="number"
+                      value={loan.priority || 0}
+                      onChange={(e) => handlePriorityChange(loan.id, e.target.value)}
+                      className="w-full border border-gray-300 p-1 rounded"
+                    />
+                  </td>
+                  <td className="border border-red-900 px-4 py-2 w-36">
                     <button
                       onClick={() => openModal(loan)}
                       className="bg-yellow-500 text-white px-2 py-1 rounded-md mr-2 w-14 break-keep"
