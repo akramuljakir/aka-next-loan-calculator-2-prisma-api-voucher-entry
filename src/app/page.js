@@ -1,4 +1,4 @@
-//src/app/page.js
+// src/app/page.js
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -10,6 +10,7 @@ const Home = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLoan, setCurrentLoan] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: 'loanName', direction: 'ascending' });
 
   useEffect(() => {
     const fetchLoans = async () => {
@@ -80,39 +81,69 @@ const Home = () => {
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
-  const interest = (annualInterestRate, loanAmount) => {
+  const calculateMonthlyInterest = (annualInterestRate, loanAmount) => {
     const monthlyInterestRate = parseFloat(annualInterestRate) / 12 / 100;
-    const interest = parseFloat(loanAmount) * monthlyInterestRate;
-    return interest
-  }
+    return parseFloat(loanAmount) * monthlyInterestRate;
+  };
+
+  const handleSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortableValue = (loan, key) => {
+    switch (key) {
+      case 'monthlyInterest':
+        return calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount);
+      default:
+        return loan[key];
+    }
+  };
+
+  const sortedLoans = [...loans].sort((a, b) => {
+    const aValue = getSortableValue(a, sortConfig.key);
+    const bValue = getSortableValue(b, sortConfig.key);
+
+    if (aValue < bValue) {
+      return sortConfig.direction === 'ascending' ? -1 : 1;
+    }
+    if (aValue > bValue) {
+      return sortConfig.direction === 'ascending' ? 1 : -1;
+    }
+    return 0;
+  });
 
   return (
     <>
-      <div className="w-full max-w-full overflow-x-auto ">
-        <div className='flex justify-between px-12'>
+      <div className="w-full max-w-full overflow-x-auto">
+        <div className="flex justify-between px-12">
           <h2 className="text-2xl font-bold mb-4">Loan List</h2>
           <button
             onClick={() => openModal()}
-            className="bg-blue-500 text-white px-4 py-2 rounded-md mb-4">
+            className="bg-blue-500 text-white px-4 py-2 rounded-md mb-4"
+          >
             Add Loan
           </button>
         </div>
-        <div className="">
-          <table className="min-w-full bg-white border text-sm break-normal ">
+        <div>
+          <table className="min-w-full bg-white border text-sm break-normal">
             <thead>
               <tr>
-                <th className="border px-4 py-2 w-56">Loan Name</th>
-                <th className="border px-4 py-2 w-30">Loan Amount</th>
-                <th className="border px-4 py-2">Interest Rate</th>
-                <th className="border px-4 py-2">Monthly Interest Amount</th>
-                <th className="border px-4 py-2">EMI Amount/ Minimum Monthly Pay</th>
-                <th className="border px-4 py-2">Start Date</th>
-                <th className="border px-4 py-2">Priority</th>
+                <th className="border px-4 py-2 w-56 cursor-pointer" onClick={() => handleSort('loanName')}>Loan Name</th>
+                <th className="border px-4 py-2 w-30 cursor-pointer" onClick={() => handleSort('loanAmount')}>Loan Amount</th>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('annualInterestRate')}>Interest Rate</th>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('monthlyInterest')}>Monthly Interest Amount</th>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('emiAmount')}>EMI Amount/Minimum Monthly Pay</th>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('loanStartDate')}>Start Date</th>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('priority')}>Priority</th>
                 <th className="border px-4 py-2 w-44">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loans.map((loan) => (
+              {sortedLoans.map((loan) => (
                 <tr key={loan.id}>
                   <td className="border px-4 py-2">
                     <Link href={`/loans/${loan.id}`}>
@@ -121,11 +152,11 @@ const Home = () => {
                   </td>
                   <td className="border px-4 py-2">{loan.loanAmount}</td>
                   <td className="border px-4 py-2">{loan.annualInterestRate}</td>
-                  <td className="border px-4 py-2">{interest(loan.annualInterestRate, loan.loanAmount)}</td>
+                  <td className="border px-4 py-2">{calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount)}</td>
                   <td className="border px-4 py-2">{loan.emiAmount}</td>
                   <td className="border px-4 py-2">{formatDate(loan.loanStartDate)}</td>
-                  <td className="border px-4 py-2">1</td>
-                  <td className="border border-red-900 px-4 py-2 w-36 ">
+                  <td className="border px-4 py-2">{loan.priority || 1}</td>
+                  <td className="border px-4 py-2 w-36">
                     <button
                       onClick={() => openModal(loan)}
                       className="bg-yellow-500 text-white px-2 py-1 rounded-md mr-2 w-14 break-keep"
@@ -158,5 +189,3 @@ const Home = () => {
 }
 
 export default Home;
-
-// i want short by Loan Name, Short By Loan Amount, Interest Rate, Monthly Interest Amount, EMI Amount/ Minimum Monthly Pay, Start Date, Priority
