@@ -13,6 +13,52 @@ const Home = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'ascending' });
   const [strategy, setStrategy] = useState('Order Entered In Table'); // Default strategy
+  const [totalMonthlyInterest, setTotalMonthlyInterest] = useState(0);
+  const [totalMinimumMonthlyPay, setTotalMinimumMonthlyPay] = useState(0);
+  const [totalEMI, setTotalEMI] = useState(0);
+  const [monthlyBudget, setMonthlyBudget] = useState(0);
+  const [budgetError, setBudgetError] = useState('');
+  const [budgetErrorClass, setBudgetErrorClass] = useState('');
+
+  useEffect(() => {
+    const totalInterest = loans.reduce((sum, loan) => sum + calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount), 0);
+    const totalMinPay = loans.reduce((sum, loan) => sum + loan.minimumPay, 0);
+    const totalEmi = loans.reduce((sum, loan) => sum + loan.emiAmount, 0);
+
+    setTotalMonthlyInterest(totalInterest);
+    setTotalMinimumMonthlyPay(totalMinPay);
+    setTotalEMI(totalEmi);
+  }, [loans]);
+
+  const handleBudgetChange = (e) => {
+    const value = parseFloat(e.target.value);
+    setMonthlyBudget(value);
+
+    if (value < totalMonthlyInterest) {
+      setBudgetError('⚠️ Insufficient Budget: Your budget is less than the total monthly interest. Please increase your budget to cover the interest.');
+      setBudgetErrorClass('text-red-700 text-xl font-bold');
+    } else if (value >= totalMonthlyInterest && value < totalMinimumMonthlyPay) {
+      setBudgetError('⚠️ Warning: Your budget is between the total monthly interest and the minimum payment. Aim to budget above the minimum payment for a healthier financial situation.');
+      setBudgetErrorClass('text-yellow-700 text-xl font-bold');
+    } else if (value >= totalMinimumMonthlyPay && value < totalEMI) {
+      setBudgetError('⚠️ Caution: Your budget is below the total EMI amount. Consider increasing your budget to avoid tight financial situations.');
+      setBudgetErrorClass('text-yellow-700 text-xl font-semibold');
+    } else if (value === totalEMI) {
+      setBudgetError('✅ Great! Your budget matches the total EMI amount perfectly. Keep it up!');
+      setBudgetErrorClass('text-green-600 text-xl font-bold');
+    } else if (value > totalEMI) {
+      setBudgetError('🎉 Excellent! Your budget exceeds the total EMI amount. You’re in a good position.');
+      setBudgetErrorClass('text-green-600 text-xl font-bold');
+    } else {
+      setBudgetError('');
+      setBudgetErrorClass('');
+    }
+
+  }
+
+
+
+
 
   useEffect(() => {
     const fetchLoans = async () => {
@@ -116,6 +162,26 @@ const Home = () => {
       console.error('Error updating priority:', error);
     }
   };
+  const handleMinimumPayChange = async (id, newMinimumPay) => {
+    try {
+      const response = await fetch(`/api/loans/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ minimumPay: Number(newMinimumPay) }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update priority');
+      }
+
+      const result = await response.json();
+      setLoans(loans.map((loan) => (loan.id === id ? { ...loan, minimumPay: newMinimumPay } : loan)));
+    } catch (error) {
+      console.error('Error updating priority:', error);
+    }
+  };
 
   const getSortableValue = (loan, key) => {
     switch (key) {
@@ -166,6 +232,17 @@ const Home = () => {
       <div className="w-full max-w-full overflow-x-auto">
         <div className="flex justify-between px-12">
           <h2 className="text-2xl font-bold mb-4">Loan List</h2>
+          <div className="mb-4">
+            <label htmlFor="budget" className="mr-2 pl-8">Monthly Budget:</label>
+            <input
+              id="budget"
+              type="number"
+              value={monthlyBudget}
+              onChange={handleBudgetChange}
+              className="border border-gray-300 p-2 rounded"
+            />
+            {budgetError && <p className={`${budgetErrorClass} mt-0 absolute `}>{budgetError}</p>}
+          </div>
 
           <div className="mb-4">
             <button
@@ -263,7 +340,7 @@ const Home = () => {
                   <td className="border px-4 py-2"><input
                     type="text"
                     value={loan.minimumPay}
-                    onChange={(e) => handlePriorityChange(loan.id, e.target.value)}
+                    onChange={(e) => handleMinimumPayChange(loan.id, e.target.value)}
                     className="w-full border border-gray-300 p-1 rounded"
                   /></td>
 
