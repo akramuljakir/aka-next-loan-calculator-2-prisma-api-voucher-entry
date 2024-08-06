@@ -12,7 +12,7 @@ const Home = () => {
   const [currentLoan, setCurrentLoan] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'ascending' });
-  const [strategy, setStrategy] = useState('Order Entered In Table'); // Default strategy
+  const [strategy, setStrategy] = useState('2s'); // Default strategy
   const [totalMonthlyInterest, setTotalMonthlyInterest] = useState(0);
   const [totalMinimumMonthlyPay, setTotalMinimumMonthlyPay] = useState(0);
   const [totalEMI, setTotalEMI] = useState(0);
@@ -33,6 +33,7 @@ const Home = () => {
   const handleBudgetChange = (e) => {
     const value = parseFloat(e.target.value);
     setMonthlyBudget(value);
+    localStorage.setItem('monthlyBudget', value);//new code
 
     if (value < totalMonthlyInterest) {
       setBudgetError('⚠️ Insufficient Budget: Your budget is less than the total monthly interest. Please increase your budget to cover the interest.');
@@ -56,7 +57,10 @@ const Home = () => {
 
   }
 
-
+  const handleStrategyChange = (e) => {
+    setStrategy(e.target.value);
+    localStorage.setItem('strategy', e.target.value);
+  };
 
 
 
@@ -72,6 +76,17 @@ const Home = () => {
     };
 
     fetchLoans();
+
+    // Load monthlyBudget and strategy from localStorage
+    const savedBudget = localStorage.getItem('monthlyBudget');
+    const savedStrategy = localStorage.getItem('strategy');
+    if (savedBudget) {
+      setMonthlyBudget(parseFloat(savedBudget));
+    }
+    if (savedStrategy) {
+      setStrategy(savedStrategy);
+    }
+
   }, []);
 
   const openModal = (loan = null) => {
@@ -255,7 +270,7 @@ const Home = () => {
             <select
               id="strategy"
               value={strategy}
-              onChange={(e) => setStrategy(e.target.value)}
+              onChange={handleStrategyChange}
               className="border border-gray-300 p-2 rounded">
               <option value="1n">No Strategy (Not Recommended) </option>
               <option value="2s">Smart ( Priority + Avalanche + Snowball)</option>
@@ -301,9 +316,9 @@ const Home = () => {
                     sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
                   ) : <FaSort className="inline ml-2" />}
                 </th>
-                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('emiAmount')}>
+                <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('minimumPay')}>
                   Minimum Monthly Pay
-                  {sortConfig.key === 'emiAmount' ? (
+                  {sortConfig.key === 'minimumPay' ? (
                     sortConfig.direction === 'ascending' ? <FaSortUp className="inline ml-2" /> : <FaSortDown className="inline ml-2" />
                   ) : <FaSort className="inline ml-2" />}
                 </th>
