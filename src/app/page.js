@@ -259,13 +259,14 @@ const Home = () => {
             {budgetError && <p className={`${budgetErrorClass} mt-0 absolute `}>{budgetError}</p>}
           </div>
 
-          <div className="mb-4">
-            <button
-              onClick={() => openModal()}
-              className="bg-blue-500 text-white px-4 py-2 rounded-md mb-4"
-            >
-              Add Loan
-            </button>
+          <div className="mb-4"> <button
+            onClick={() => openModal()}
+            className="bg-blue-500 text-white px-4 py-2 rounded-md mb-4"
+          >
+            Add Loan
+          </button> </div>
+          <div className="mb-4 content-center">
+
             <label htmlFor="strategy" className="mr-2 pl-8">Strategy:</label>
             <select
               id="strategy"
@@ -279,6 +280,7 @@ const Home = () => {
               <option value="5h">Highest Priority First </option>
               <option value="6l">Lowest Priority First </option>
             </select>
+            <p className='text-center ml-20'>Lower numbers indicate higher priority</p>
           </div>
         </div>
         <div>

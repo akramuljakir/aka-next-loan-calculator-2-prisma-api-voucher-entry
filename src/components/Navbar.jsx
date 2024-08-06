@@ -20,6 +20,11 @@ const links = [
     title: "Combined",
     url: "/combined",
   },
+  {
+    id: 3,
+    title: "snowball",
+    url: "/snowball",
+  },
 ];
 
 const Navbar = () => {
