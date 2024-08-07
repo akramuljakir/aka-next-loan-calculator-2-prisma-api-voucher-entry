@@ -13,6 +13,7 @@ const Home = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'ascending' });
   const [strategy, setStrategy] = useState('2s'); // Default strategy
+  const [totalLoan, setTotalLoan] = useState()
   const [totalMonthlyInterest, setTotalMonthlyInterest] = useState(0);
   const [totalMinimumMonthlyPay, setTotalMinimumMonthlyPay] = useState(0);
   const [totalEMI, setTotalEMI] = useState(0);
@@ -21,10 +22,11 @@ const Home = () => {
   const [budgetErrorClass, setBudgetErrorClass] = useState('');
 
   useEffect(() => {
+    const totalLoan = loans.reduce((sum, loan) => sum + loan.loanAmount, 0);
     const totalInterest = loans.reduce((sum, loan) => sum + calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount), 0);
     const totalMinPay = loans.reduce((sum, loan) => sum + loan.minimumPay, 0);
     const totalEmi = loans.reduce((sum, loan) => sum + loan.emiAmount, 0);
-
+    setTotalLoan(totalLoan);
     setTotalMonthlyInterest(totalInterest);
     setTotalMinimumMonthlyPay(totalMinPay);
     setTotalEMI(totalEmi);
@@ -242,6 +244,7 @@ const Home = () => {
   });
 
 
+
   return (
     <>
       <div className="w-full max-w-full overflow-x-auto">
@@ -421,7 +424,20 @@ const Home = () => {
                   </td>
                 </tr>
               ))}
+
             </tbody>
+            <tfoot>
+              <tr className="bg-gray-100 font-bold">
+                <td>Total</td>
+                <td></td>
+                <td>{totalLoan}</td>
+                <td></td>
+                <td>{totalMonthlyInterest.toFixed(2)}</td>
+                <td>{totalEMI.toFixed(2)}</td>
+                <td>{totalMinimumMonthlyPay.toFixed(2)}</td>
+                <td></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
