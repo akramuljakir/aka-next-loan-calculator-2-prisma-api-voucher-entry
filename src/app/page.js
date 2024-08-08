@@ -24,7 +24,7 @@ const Home = () => {
   useEffect(() => {
     const totalLoan = loans.reduce((sum, loan) => sum + loan.loanAmount, 0);
     const totalInterest = loans.reduce((sum, loan) => sum + calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount), 0);
-    const totalMinPay = loans.reduce((sum, loan) => sum + loan.minimumPay, 0);
+    const totalMinPay = loans.reduce((sum, loan) => sum + +loan.minimumPay, 0);
     const totalEmi = loans.reduce((sum, loan) => sum + loan.emiAmount, 0);
     setTotalLoan(totalLoan);
     setTotalMonthlyInterest(totalInterest);

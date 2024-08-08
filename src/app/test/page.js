@@ -1,350 +1,217 @@
-// src/app/page.js
-"use client";
+// src/app/combined/page.jsx
+
+'use client';
 
 import { useState, useEffect } from 'react';
-import LoanForm from '@/components/LoanForm';
-import Link from 'next/link';
-import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 
-const Home = () => {
-    const [loans, setLoans] = useState([]);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [currentLoan, setCurrentLoan] = useState(null);
-    const [isEditing, setIsEditing] = useState(false);
-    const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'ascending' });
-    const [strategy, setStrategy] = useState('2s'); // Default strategy
-    const [totalMonthlyInterest, setTotalMonthlyInterest] = useState(0);
-    const [totalMinimumMonthlyPay, setTotalMinimumMonthlyPay] = useState(0);
-    const [totalEMI, setTotalEMI] = useState(0);
-    const [monthlyBudget, setMonthlyBudget] = useState(0);
-    const [budgetError, setBudgetError] = useState('');
-    const [budgetErrorClass, setBudgetErrorClass] = useState('');
+const calculateAmortization = (loan) => {
+    const Schedule = [];
+    const monthlyInterestRate = parseFloat(loan.annualInterestRate) / 12 / 100;
+    let remainingBalance = parseFloat(loan.loanAmount);
+    const minimumPay = parseFloat(loan.minimumPay); //
+    const emiAmount = parseFloat(loan.emiAmount);
+    let transactionDate = new Date(loan.loanStartDate);
+    console.log('minimumPay', minimumPay);
 
-    useEffect(() => {
-        const totalInterest = loans.reduce((sum, loan) => sum + calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount), 0);
-        const totalMinPay = loans.reduce((sum, loan) => sum + loan.minimumPay, 0);
-        const totalEmi = loans.reduce((sum, loan) => sum + loan.emiAmount, 0);
+    let installmentNumber = 1;
+    transactionDate.setMonth(transactionDate.getMonth() + 1);
 
-        setTotalMonthlyInterest(totalInterest);
-        setTotalMinimumMonthlyPay(totalMinPay);
-        setTotalEMI(totalEmi);
-    }, [loans]);
+    while (remainingBalance > minimumPay) {
+        const interest = remainingBalance * monthlyInterestRate;
+        const principal = +minimumPay - interest;
+        remainingBalance -= principal;
 
-    const handleBudgetChange = (e) => {
-        const value = parseFloat(e.target.value);
-        setMonthlyBudget(value);
-        localStorage.setItem('monthlyBudget', value);
+        Schedule.push({
+            installment: installmentNumber,
+            date: transactionDate.toISOString().split('T')[0],
+            principalPart: principal.toFixed(2),
+            interestPart: interest.toFixed(2),
+            emiToPay: emiAmount.toFixed(2),
+            balance: remainingBalance.toFixed(2),
+            loanName: loan.loanName,
+            minimumPay: loan.minimumPay || 0 // Ensure minimumPay is handled
+        });
 
-        if (value < totalMonthlyInterest) {
-            setBudgetError('⚠️ Insufficient Budget: Your budget is less than the total monthly interest. Please increase your budget to cover the interest.');
-            setBudgetErrorClass('text-red-700 text-xl font-bold');
-        } else if (value >= totalMonthlyInterest && value < totalMinimumMonthlyPay) {
-            setBudgetError('⚠️ Warning: Your budget is between the total monthly interest and the minimum payment. Aim to budget above the minimum payment for a healthier financial situation.');
-            setBudgetErrorClass('text-yellow-700 text-xl font-bold');
-        } else if (value >= totalMinimumMonthlyPay && value < totalEMI) {
-            setBudgetError('⚠️ Caution: Your budget is below the total EMI amount. Consider increasing your budget to avoid tight financial situations.');
-            setBudgetErrorClass('text-yellow-700 text-xl font-semibold');
-        } else if (value === totalEMI) {
-            setBudgetError('✅ Great! Your budget matches the total EMI amount perfectly. Keep it up!');
-            setBudgetErrorClass('text-green-600 text-xl font-bold');
-        } else if (value > totalEMI) {
-            setBudgetError('🎉 Excellent! Your budget exceeds the total EMI amount. You’re in a good position.');
-            setBudgetErrorClass('text-green-600 text-xl font-bold');
-        } else {
-            setBudgetError('');
-            setBudgetErrorClass('');
-        }
+        transactionDate.setMonth(transactionDate.getMonth() + 1);
+        installmentNumber++;
     }
 
-    const handleStrategyChange = (e) => {
-        setStrategy(e.target.value);
-        localStorage.setItem('strategy', e.target.value);
-    };
+    // Add the final payment where the balance becomes less than EMI
+    if (remainingBalance > 0) {
+        const interest = remainingBalance * monthlyInterestRate;
+        const principal = remainingBalance;
+        remainingBalance = 0;
+
+        Schedule.push({
+            installment: installmentNumber,
+            date: transactionDate.toISOString().split('T')[0],
+            principalPart: principal.toFixed(2),
+            interestPart: interest.toFixed(2),
+            emiToPay: (principal + interest).toFixed(2),
+            balance: remainingBalance.toFixed(2),
+            loanName: loan.loanName,
+            minimumPay: (principal + interest).toFixed(2) || 0 // Ensure minimumPay is handled
+        });
+    }
+
+    return Schedule;
+};
+
+
+// Utility function to sort ledger entries by date
+const sortByDate = (entries) => {
+    return entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+};
+
+const CombinedAmortizationPage = () => {
+    const [loans, setLoans] = useState([]);
+    const [finalData, setFinalData] = useState([]);
+    const [monthlyBudget, setMonthlyBudget] = useState(0);
 
     useEffect(() => {
         const fetchLoans = async () => {
             try {
-                const response = await fetch('/api/loans');
+                const response = await fetch('/api/loans'); // Adjust the endpoint as needed
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
                 const result = await response.json();
                 setLoans(result.data);
+
+                let preData = [];
+
+                // Combine amortization schedules of all loans
+                result.data.forEach(loan => {
+                    const creditAmount = parseFloat(loan.loanAmount);
+                    const principalPart = 0 - creditAmount;
+
+                    // Add initial loan entry
+                    preData.push({
+                        date: loan.loanStartDate.split('T')[0],
+                        description: `New Loan: ${loan.loanName} Start`,
+                        principalpaid: principalPart,
+                        emiToPay: 0,
+                        interest: 0,
+                        balance: creditAmount,
+                        minimumPay: 0 // Ensure minimumPay is handled
+                        // minimumPay: loan.minimumPay || 0 // Ensure minimumPay is handled
+                    });
+
+                    // Add amortization schedule entries
+                    const amortizationSchedule = calculateAmortization(loan);
+                    amortizationSchedule.forEach(transaction => {
+                        preData.push({
+                            date: transaction.date,
+                            description: `${loan.loanName} EMI`,
+                            principalpaid: parseFloat(transaction.principalPart),
+                            emiToPay: parseFloat(transaction.emiToPay),
+                            interest: parseFloat(transaction.interestPart),
+                            balance: parseFloat(transaction.balance),
+                            minimumPay: parseFloat(transaction.minimumPay), // Ensure minimumPay is handled
+                        });
+                    });
+                });
+
+                // Sort by date
+                preData = sortByDate(preData);
+
+                // Calculate combined balance and total loans
+                let totalLoans = 0;
+                const data = preData.map(transaction => {
+                    totalLoans -= transaction.principalpaid;
+                    return {
+                        ...transaction,
+                        totalLoans: totalLoans.toFixed(2)
+                    };
+                });
+
+                // Find the oldest date in the data array
+                const openingDate = data.length > 0 ? data[0].date : '';
+
+                // Add opening balance entry
+                const opening = [
+                    { date: openingDate, description: 'Opening Balance', principalpaid: 0, interest: 0, emiToPay: 0, balance: 0, totalLoans: '0.00', minimumPay: 0 }
+                ];
+
+                // Add opening balance to the beginning of the data array
+                setFinalData([...opening, ...data]);
+
             } catch (error) {
-                console.error('Error fetching loans:', error);
+                console.error('Failed to fetch loans:', error);
             }
         };
 
         fetchLoans();
-
-        // Load monthlyBudget and strategy from localStorage
         const savedBudget = localStorage.getItem('monthlyBudget');
-        const savedStrategy = localStorage.getItem('strategy');
         if (savedBudget) {
             setMonthlyBudget(parseFloat(savedBudget));
         }
-        if (savedStrategy) {
-            setStrategy(savedStrategy);
-        }
+
     }, []);
 
-    const openModal = (loan = null) => {
-        setCurrentLoan(loan);
-        setIsEditing(!!loan);
-        setIsModalOpen(true);
-    };
+    console.log('MonthlyBudget', monthlyBudget);
 
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setCurrentLoan(null);
-        setIsEditing(false);
-    };
+    const getMonthClass = (date) => {
+        const currentDate = new Date();
+        const entryDate = new Date(date);
+        const month = entryDate.getMonth();
+        const year = entryDate.getFullYear();
 
-    const saveLoan = async (loan) => {
-        try {
-            const method = isEditing ? 'PUT' : 'POST';
-            const url = isEditing ? `/api/loans/${currentLoan.id}` : '/api/loans';
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(loan),
-            });
+        const colors = [
+            'bg-red-200', 'bg-cyan-200',   // January & February
+            'bg-orange-200', 'bg-blue-200', // March & April
+            'bg-yellow-200', 'bg-purple-200', // May & June
+            'bg-green-200', 'bg-pink-200',   // July & August
+            'bg-sky-200', 'bg-rose-200',    // September & October
+            'bg-indigo-200', 'bg-lime-200'   // November & December
+        ];
+        let classNames = colors[month % colors.length];
 
-            const result = await response.json();
-            if (response.ok) {
-                const updatedLoans = isEditing
-                    ? loans.map((item) => (item.id === currentLoan.id ? result.result : item))
-                    : [...loans, result.result];
-                setLoans(updatedLoans);
-                closeModal();
-            } else {
-                console.error('Error saving loan:', result);
-            }
-        } catch (error) {
-            console.error('Error saving loan:', error);
+        if (month === currentDate.getMonth() && year === currentDate.getFullYear()) {
+            classNames += ' font-black';
         }
+
+        return classNames;
     };
-
-    const deleteLoan = async (id) => {
-        try {
-            await fetch(`/api/loans/${id}`, {
-                method: 'DELETE',
-            });
-            setLoans(loans.filter((loan) => loan.id !== id));
-        } catch (error) {
-            console.error('Error deleting loan:', error);
-        }
-    };
-
-    const formatDate = (dateString) => {
-        const options = { year: 'numeric', month: 'long', day: 'numeric' };
-        return new Date(dateString).toLocaleDateString(undefined, options);
-    };
-
-    const calculateMonthlyInterest = (annualInterestRate, loanAmount) => {
-        const monthlyInterestRate = parseFloat(annualInterestRate) / 12 / 100;
-        return parseFloat(loanAmount) * monthlyInterestRate;
-    };
-
-    const handleSort = (key) => {
-        let direction = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    };
-
-    const handlePriorityChange = async (id, newPriority) => {
-        try {
-            const response = await fetch(`/api/loans/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ priority: Number(newPriority) }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update priority');
-            }
-
-            const result = await response.json();
-            setLoans(loans.map((loan) => (loan.id === id ? { ...loan, priority: newPriority } : loan)));
-        } catch (error) {
-            console.error('Error updating priority:', error);
-        }
-    };
-
-    const handleMinimumPayChange = async (id, newMinimumPay) => {
-        try {
-            const response = await fetch(`/api/loans/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ minimumPay: Number(newMinimumPay) }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update minimum pay');
-            }
-
-            const result = await response.json();
-            setLoans(loans.map((loan) => (loan.id === id ? { ...loan, minimumPay: newMinimumPay } : loan)));
-        } catch (error) {
-            console.error('Error updating minimum pay:', error);
-        }
-    };
-
-    const getSortableValue = (loan, key) => {
-        switch (key) {
-            case 'monthlyInterest':
-                return calculateMonthlyInterest(loan.annualInterestRate, loan.loanAmount);
-            default:
-                return loan[key];
-        }
-    };
-
-    const sortedLoans = [...loans].sort((a, b) => {
-        let aValue = getSortableValue(a, sortConfig.key);
-        let bValue = getSortableValue(b, sortConfig.key);
-
-        // Strategy-based sorting logic
-        switch (strategy) {
-            case '2s': // Smart (Priority + Avalanche + Snowball)
-                if (a.priority !== b.priority) {
-                    return a.priority - b.priority; // Sort by priority first
-                } else if (a.annualInterestRate !== b.annualInterestRate) {
-                    return b.annualInterestRate - a.annualInterestRate; // Then by highest interest rate
-                } else {
-                    return a.loanAmount - b.loanAmount; // Finally by loan amount
-                }
-            case '3a': // Avalanche (Highest Interest First)
-                return b.annualInterestRate - a.annualInterestRate;
-            case '4s': // Snowball (Lowest Balance First)
-                return a.loanAmount - b.loanAmount;
-            case '5h': // Highest Priority First
-                return a.priority - b.priority;
-            case '6l': // Lowest Priority First
-                return b.priority - a.priority;
-            default:
-                return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-        }
-    });
 
     return (
         <div className="container mx-auto p-4">
-            <div className="mb-4 flex items-center">
-                <label htmlFor="budget" className="mr-2">Monthly Budget:</label>
-                <input
-                    id="budget"
-                    type="number"
-                    value={monthlyBudget}
-                    onChange={handleBudgetChange}
-                    className={`border p-2 rounded ${budgetErrorClass}`}
-                />
-                {budgetError && <p className={`mt-2 ${budgetErrorClass}`}>{budgetError}</p>}
-            </div>
-            <div className="mb-4 flex items-center">
-                <label htmlFor="strategy" className="mr-2">Strategy:</label>
-                <select
-                    id="strategy"
-                    value={strategy}
-                    onChange={handleStrategyChange}
-                    className="border p-2 rounded"
-                >
-                    <option value="2s">Smart (Priority + Avalanche + Snowball)</option>
-                    <option value="3a">Avalanche (Highest Interest First)</option>
-                    <option value="4s">Snowball (Lowest Balance First)</option>
-                    <option value="5h">Highest Priority First</option>
-                    <option value="6l">Lowest Priority First</option>
-                </select>
-            </div>
-            <table className="w-full border-collapse border border-gray-300">
-                <thead>
-                    <tr>
-                        <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('priority')}>
-                            Priority
-                            {sortConfig.key === 'priority' ? (
-                                sortConfig.direction === 'ascending' ? <FaSortUp /> : <FaSortDown />
-                            ) : (
-                                <FaSort />
-                            )}
-                        </th>
-                        <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('annualInterestRate')}>
-                            Annual Interest Rate
-                            {sortConfig.key === 'annualInterestRate' ? (
-                                sortConfig.direction === 'ascending' ? <FaSortUp /> : <FaSortDown />
-                            ) : (
-                                <FaSort />
-                            )}
-                        </th>
-                        <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('loanAmount')}>
-                            Loan Amount
-                            {sortConfig.key === 'loanAmount' ? (
-                                sortConfig.direction === 'ascending' ? <FaSortUp /> : <FaSortDown />
-                            ) : (
-                                <FaSort />
-                            )}
-                        </th>
-                        <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('emiAmount')}>
-                            EMI Amount
-                            {sortConfig.key === 'emiAmount' ? (
-                                sortConfig.direction === 'ascending' ? <FaSortUp /> : <FaSortDown />
-                            ) : (
-                                <FaSort />
-                            )}
-                        </th>
-                        <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('minimumPay')}>
-                            Minimum Pay
-                            {sortConfig.key === 'minimumPay' ? (
-                                sortConfig.direction === 'ascending' ? <FaSortUp /> : <FaSortDown />
-                            ) : (
-                                <FaSort />
-                            )}
-                        </th>
-                        <th className="border border-gray-300 p-2">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {sortedLoans.length ? sortedLoans.map((loan) => (
-                        <tr key={loan.id}>
-                            <td className="border border-gray-300 p-2">{loan.priority}</td>
-                            <td className="border border-gray-300 p-2">{loan.annualInterestRate}%</td>
-                            <td className="border border-gray-300 p-2">{loan.loanAmount.toFixed(2)}</td>
-                            <td className="border border-gray-300 p-2">{loan.emiAmount.toFixed(2)}</td>
-                            <td className="border border-gray-300 p-2">{loan.minimumPay.toFixed(2)}</td>
-                            <td className="border border-gray-300 p-2">
-                                <button onClick={() => openModal(loan)}>Edit</button>
-                                <button onClick={() => deleteLoan(loan.id)} className="ml-2 text-red-500">Delete</button>
-                            </td>
-                        </tr>
-                    )) : (
+            <h1 className="text-2xl font-bold mb-4">All Loans Amortization Schedule</h1>
+            <h1 className="text-2xl font-bold mb-4">{monthlyBudget}</h1>
+            <div className="overflow-x-auto">
+                <table className="min-w-full bg-white border border-gray-200">
+                    <thead>
                         <tr>
-                            <td colSpan="6" className="border border-gray-300 p-2 text-center">No loans available</td>
+                            <th className="px-4 py-2 border-b">Sl No</th>
+                            <th className="px-4 py-2 border-b">Date</th>
+                            <th className="px-4 py-2 border-b">Loan Name</th>
+                            <th className="px-4 py-2 border-b">Principal Paid</th>
+                            <th className="px-4 py-2 border-b">Interest</th>
+                            <th className="px-4 py-2 border-b">EMI to Pay</th>
+                            <th className="px-4 py-2 border-b">Minimum Pay</th> {/* New header */}
+                            <th className="px-4 py-2 border-b">Loan Balance</th>
+                            <th className="px-4 py-2 border-b">Total Loans</th>
                         </tr>
-                    )}
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td className="border border-gray-300 p-2 font-bold" colSpan="2">Total</td>
-                        <td className="border border-gray-300 p-2 font-bold">{totalEMI.toFixed(2)}</td>
-                        <td className="border border-gray-300 p-2 font-bold">{totalMinimumMonthlyPay.toFixed(2)}</td>
-                        <td className="border border-gray-300 p-2 font-bold">{totalMonthlyInterest.toFixed(2)}</td>
-                        <td className="border border-gray-300 p-2"></td>
-                    </tr>
-                </tfoot>
-            </table>
-
-            {isModalOpen && (
-                <LoanForm
-                    loan={currentLoan}
-                    isEditing={isEditing}
-                    onSave={saveLoan}
-                    onClose={closeModal}
-                />
-            )}
+                    </thead>
+                    <tbody>
+                        {finalData.map((payment, index) => (
+                            <tr key={index} className={`${getMonthClass(payment.date)}`} >
+                                <td className="px-4 py-2 border-b">{index + 1}</td>
+                                <td className="px-4 py-2 border-b">{payment.date}</td>
+                                <td className="px-4 py-2 border-b">{payment.description}</td>
+                                <td className="px-4 py-2 border-b">{payment.principalpaid.toFixed(2)}</td>
+                                <td className="px-4 py-2 border-b">{payment.interest.toFixed(2)}</td>
+                                <td className="px-4 py-2 border-b">{payment.emiToPay.toFixed(2)}</td>
+                                <td className="px-4 py-2 border-b">{payment.minimumPay.toFixed(2)}</td> {/* New data cell */}
+                                <td className="px-4 py-2 border-b">{payment.balance.toFixed(2)}</td>
+                                <td className="px-4 py-2 border-b">{payment.totalLoans}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 };
 
-export default Home;
+export default CombinedAmortizationPage;
