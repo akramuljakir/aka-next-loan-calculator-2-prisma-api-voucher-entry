@@ -66,6 +66,7 @@ const CombinedAmortizationPage = () => {
     const [finalData, setFinalData] = useState([]);
     const [monthlyBudget, setMonthlyBudget] = useState(0);
     const [budgetComparison, setBudgetComparison] = useState({});
+    const [highestInterestLoan, setHighestInterestLoan] = useState(null);
 
 
     useEffect(() => {
@@ -84,6 +85,18 @@ const CombinedAmortizationPage = () => {
                 }
                 const result = await response.json();
                 setLoans(result.data);
+
+                // moved to here
+                // Identify the loan with the highest interest rate
+                const highestLoan = result.data.reduce(
+                    (max, loan) => parseFloat(loan.annualInterestRate) > parseFloat(max.annualInterestRate) ? loan : max,
+                    result.data[0]
+                );
+                setHighestInterestLoan(highestLoan);
+
+                console.log('Loan with Highest Interest Rate highestInterestLoan:', highestInterestLoan);
+                console.log('Loan with Highest Interest Rate highestLoan:', highestLoan);
+                // 
 
                 let preData = [];
 
@@ -104,6 +117,7 @@ const CombinedAmortizationPage = () => {
 
                     const amortizationSchedule = calculateAmortization(loan);
                     amortizationSchedule.forEach(transaction => {
+                        const isHighest = result.data.length === 1 || loan.loanName === highestLoan.loanName;
                         preData.push({
                             date: transaction.date,
                             description: `${loan.loanName} EMI`,
@@ -112,6 +126,8 @@ const CombinedAmortizationPage = () => {
                             interest: parseFloat(transaction.interestPart),
                             balance: parseFloat(transaction.balance),
                             minimumPay: parseFloat(transaction.minimumPay),
+                            snowball: isHighest ? 'I am High' : '' // Adjusted logic
+
                         });
                     });
                 });
@@ -146,9 +162,8 @@ const CombinedAmortizationPage = () => {
 
                 console.log('Monthly Totals:', monthlyTotals);
 
-                // Log the loan with the highest interest rate
-                const highestInterestLoan = result.data.reduce((max, loan) => (parseFloat(loan.annualInterestRate) > parseFloat(max.annualInterestRate) ? loan : max), result.data[0]);
-                console.log('Loan with Highest Interest Rate:', highestInterestLoan);
+                // moved from here 
+
 
                 // Calculate and log the difference between monthlyBudget and monthlyTotals
                 const budgetComp = {};
@@ -171,9 +186,10 @@ const CombinedAmortizationPage = () => {
         if (monthlyBudget !== 0) {
             fetchLoans();
         }
+
     }, [monthlyBudget]);
 
-
+    console.log('loans', loans);
     console.log('MonthlyBudget:::', monthlyBudget);
     console.log('Budget Comparison:::', budgetComparison);
 
@@ -216,6 +232,7 @@ const CombinedAmortizationPage = () => {
                             <th className="px-4 py-2 border-b">Interest</th>
                             <th className="px-4 py-2 border-b">EMI to Pay</th>
                             <th className="px-4 py-2 border-b">Minimum Pay</th>
+                            <th className="px-4 py-2 border-b">Snowball</th> {/* New Column */}
                             <th className="px-4 py-2 border-b">Loan Balance</th>
                             <th className="px-4 py-2 border-b">Total Loans</th>
                         </tr>
@@ -230,6 +247,7 @@ const CombinedAmortizationPage = () => {
                                 <td className="px-4 py-2 border-b">{payment.interest.toFixed(2)}</td>
                                 <td className="px-4 py-2 border-b">{payment.emiToPay.toFixed(2)}</td>
                                 <td className="px-4 py-2 border-b">{payment.minimumPay.toFixed(2)}</td>
+                                <td className="px-4 py-2 border-b">{payment.snowball}</td> {/* New Column */}
                                 <td className="px-4 py-2 border-b">{payment.balance.toFixed(2)}</td>
                                 <td className="px-4 py-2 border-b">{payment.totalLoans}</td>
                             </tr>
