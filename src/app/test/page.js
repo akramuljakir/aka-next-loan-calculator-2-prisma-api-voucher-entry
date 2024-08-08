@@ -12,8 +12,6 @@ const calculateAmortization = (loan) => {
     const emiAmount = parseFloat(loan.emiAmount);
     let transactionDate = new Date(loan.loanStartDate);
 
-    // console.log('minimumPay ', minimumPay); //
-
     let installmentNumber = 1;
     transactionDate.setMonth(transactionDate.getMonth() + 1);
 
@@ -30,7 +28,8 @@ const calculateAmortization = (loan) => {
             emiToPay: emiAmount.toFixed(2),
             balance: remainingBalance.toFixed(2),
             loanName: loan.loanName,
-            minimumPay: loan.minimumPay || 0
+            minimumPay: loan.minimumPay || 0,
+            annualInterestRate: loan.annualInterestRate
         });
 
         transactionDate.setMonth(transactionDate.getMonth() + 1);
@@ -50,7 +49,8 @@ const calculateAmortization = (loan) => {
             emiToPay: (principal + interest).toFixed(2),
             balance: remainingBalance.toFixed(2),
             loanName: loan.loanName,
-            minimumPay: (principal + interest).toFixed(2) || 0
+            minimumPay: (principal + interest).toFixed(2) || 0,
+            annualInterestRate: loan.annualInterestRate
         });
     }
 
@@ -61,13 +61,41 @@ const sortByDate = (entries) => {
     return entries.sort((a, b) => new Date(a.date) - new Date(b.date));
 };
 
+const groupByMonth = (entries) => {
+    return entries.reduce((groups, entry) => {
+        const monthYear = new Date(entry.date).toLocaleString('default', { month: 'long', year: 'numeric' });
+        if (!groups[monthYear]) {
+            groups[monthYear] = [];
+        }
+        groups[monthYear].push(entry);
+        return groups;
+    }, {});
+};
+
+const findHighestInterestLoans = (groupedEntries) => {
+    const highestLoans = {};
+
+    Object.keys(groupedEntries).forEach(monthYear => {
+        const entries = groupedEntries[monthYear];
+        const highestLoan = entries.reduce(
+            (max, entry) => {
+                if (entry.snowball) return max;
+                const interestRate = parseFloat(entry.annualInterestRate || 0);
+                return interestRate > parseFloat(max.annualInterestRate || 0) ? entry : max;
+            },
+            entries[0]
+        );
+        highestLoans[monthYear] = highestLoan;
+    });
+
+    return highestLoans;
+};
+
 const CombinedAmortizationPage = () => {
     const [loans, setLoans] = useState([]);
     const [finalData, setFinalData] = useState([]);
     const [monthlyBudget, setMonthlyBudget] = useState(0);
     const [budgetComparison, setBudgetComparison] = useState({});
-    const [highestInterestLoan, setHighestInterestLoan] = useState(null);
-
 
     useEffect(() => {
         const savedBudget = localStorage.getItem('monthlyBudget');
@@ -86,21 +114,8 @@ const CombinedAmortizationPage = () => {
                 const result = await response.json();
                 setLoans(result.data);
 
-                // moved to here
-                // Identify the loan with the highest interest rate
-                const highestLoan = result.data.reduce(
-                    (max, loan) => parseFloat(loan.annualInterestRate) > parseFloat(max.annualInterestRate) ? loan : max,
-                    result.data[0]
-                );
-                setHighestInterestLoan(highestLoan);
-
-                console.log('Loan with Highest Interest Rate highestInterestLoan:', highestInterestLoan);
-                console.log('Loan with Highest Interest Rate highestLoan:', highestLoan);
-                // 
-
                 let preData = [];
 
-                // Combine amortization schedules of all loans
                 result.data.forEach(loan => {
                     const creditAmount = parseFloat(loan.loanAmount);
                     const principalPart = 0 - creditAmount;
@@ -112,12 +127,12 @@ const CombinedAmortizationPage = () => {
                         emiToPay: 0,
                         interest: 0,
                         balance: creditAmount,
-                        minimumPay: 0
+                        minimumPay: 0,
+                        annualInterestRate: loan.annualInterestRate
                     });
 
                     const amortizationSchedule = calculateAmortization(loan);
                     amortizationSchedule.forEach(transaction => {
-                        const isHighest = result.data.length === 1 || loan.loanName === highestLoan.loanName;
                         preData.push({
                             date: transaction.date,
                             description: `${loan.loanName} EMI`,
@@ -126,10 +141,20 @@ const CombinedAmortizationPage = () => {
                             interest: parseFloat(transaction.interestPart),
                             balance: parseFloat(transaction.balance),
                             minimumPay: parseFloat(transaction.minimumPay),
-                            snowball: isHighest ? 'I am High' : '' // Adjusted logic
-
+                            annualInterestRate: loan.annualInterestRate
                         });
                     });
+                });
+
+                const groupedEntries = groupByMonth(preData);
+                const highestLoans = findHighestInterestLoans(groupedEntries);
+
+                preData = preData.map(entry => {
+                    const monthYear = new Date(entry.date).toLocaleString('default', { month: 'long', year: 'numeric' });
+                    return {
+                        ...entry,
+                        snowball: highestLoans[monthYear] && entry.description.includes(highestLoans[monthYear].description) ? 'I am High' : ''
+                    };
                 });
 
                 preData = sortByDate(preData);
@@ -150,7 +175,6 @@ const CombinedAmortizationPage = () => {
 
                 setFinalData([...opening, ...data]);
 
-                // Log the total minimum pay for each month
                 const monthlyTotals = {};
                 preData.forEach(entry => {
                     const month = new Date(entry.date).toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -162,10 +186,6 @@ const CombinedAmortizationPage = () => {
 
                 console.log('Monthly Totals:', monthlyTotals);
 
-                // moved from here 
-
-
-                // Calculate and log the difference between monthlyBudget and monthlyTotals
                 const budgetComp = {};
                 Object.keys(monthlyTotals).forEach(month => {
                     budgetComp[month] = {
@@ -188,11 +208,6 @@ const CombinedAmortizationPage = () => {
         }
 
     }, [monthlyBudget]);
-
-    console.log('loans', loans);
-    console.log('MonthlyBudget:::', monthlyBudget);
-    console.log('Budget Comparison:::', budgetComparison);
-
 
     const getMonthClass = (date) => {
         const currentDate = new Date();
@@ -233,27 +248,37 @@ const CombinedAmortizationPage = () => {
                             <th className="px-4 py-2 border-b">EMI to Pay</th>
                             <th className="px-4 py-2 border-b">Minimum Pay</th>
                             <th className="px-4 py-2 border-b">Snowball</th> {/* New Column */}
-                            <th className="px-4 py-2 border-b">Loan Balance</th>
+                            <th className="px-4 py-2 border-b">Balance</th>
                             <th className="px-4 py-2 border-b">Total Loans</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {finalData.map((payment, index) => (
-                            <tr key={index} className={`${getMonthClass(payment.date)}`} >
-                                <td className="px-4 py-2 border-b">{index + 1}</td>
-                                <td className="px-4 py-2 border-b">{payment.date}</td>
-                                <td className="px-4 py-2 border-b">{payment.description}</td>
-                                <td className="px-4 py-2 border-b">{payment.principalpaid.toFixed(2)}</td>
-                                <td className="px-4 py-2 border-b">{payment.interest.toFixed(2)}</td>
-                                <td className="px-4 py-2 border-b">{payment.emiToPay.toFixed(2)}</td>
-                                <td className="px-4 py-2 border-b">{payment.minimumPay.toFixed(2)}</td>
-                                <td className="px-4 py-2 border-b">{payment.snowball}</td> {/* New Column */}
-                                <td className="px-4 py-2 border-b">{payment.balance.toFixed(2)}</td>
-                                <td className="px-4 py-2 border-b">{payment.totalLoans}</td>
+                        {finalData.map((transaction, index) => (
+                            <tr key={index} className={getMonthClass(transaction.date)}>
+                                <td className="px-4 py-2 border-b text-center">{index + 1}</td>
+                                <td className="px-4 py-2 border-b">{transaction.date}</td>
+                                <td className="px-4 py-2 border-b">{transaction.description}</td>
+                                <td className="px-4 py-2 border-b text-right">{transaction.principalpaid.toFixed(2)}</td>
+                                <td className="px-4 py-2 border-b text-right">{transaction.interest.toFixed(2)}</td>
+                                <td className="px-4 py-2 border-b text-right">{transaction.emiToPay.toFixed(2)}</td>
+                                <td className="px-4 py-2 border-b text-right">{transaction.minimumPay.toFixed(2)}</td>
+                                <td className="px-4 py-2 border-b text-center">{transaction.snowball}</td> {/* New Column */}
+                                <td className="px-4 py-2 border-b text-right">{transaction.balance.toFixed(2)}</td>
+                                <td className="px-4 py-2 border-b text-right">{transaction.totalLoans}</td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
+            </div>
+            <div className="mt-4">
+                <h2 className="text-xl font-bold">Budget Comparison</h2>
+                <ul>
+                    {Object.keys(budgetComparison).map(month => (
+                        <li key={month}>
+                            {month}: Total Pay {budgetComparison[month].monthlyTotal.toFixed(2)}, Difference: {budgetComparison[month].difference.toFixed(2)}
+                        </li>
+                    ))}
+                </ul>
             </div>
         </div>
     );
