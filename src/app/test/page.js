@@ -4,38 +4,105 @@
 
 import { useState, useEffect } from 'react';
 
-const calculateAmortization = (loan) => {
+const calculateAmortization = (loan, monthlyBudget) => {
+    console.log('loan 0', loan);
+
     const Schedule = [];
     const monthlyInterestRate = parseFloat(loan.annualInterestRate) / 12 / 100;
     let remainingBalance = parseFloat(loan.loanAmount);
     const minimumPay = parseFloat(loan.minimumPay);
     const emiAmount = parseFloat(loan.emiAmount);
     let transactionDate = new Date(loan.loanStartDate);
+    const snowball = parseFloat(loan.snowball || 0);
 
     let installmentNumber = 1;
     transactionDate.setMonth(transactionDate.getMonth() + 1);
 
+    // Calculate the total minimum payment for all loans
+    let totalMinimumPay = minimumPay;
+    console.log('minimumpay', totalMinimumPay);
+
     while (remainingBalance > minimumPay) {
+        // Calculate leftover budget (snowball)
+        const leftoverBudget = Math.max(monthlyBudget - totalMinimumPay, 0);
+        console.log('leftoverBudget', leftoverBudget);
+
+        // Calculate interest and principal
         const interest = remainingBalance * monthlyInterestRate;
-        const principal = +minimumPay - interest;
-        remainingBalance -= principal;
+        let principal = minimumPay - interest;
 
-        Schedule.push({
-            installment: installmentNumber,
-            date: transactionDate.toISOString().split('T')[0],
-            principalPart: principal.toFixed(2),
-            interestPart: interest.toFixed(2),
-            emiToPay: emiAmount.toFixed(2),
-            balance: remainingBalance.toFixed(2),
-            loanName: loan.loanName,
-            minimumPay: loan.minimumPay || 0,
-            annualInterestRate: loan.annualInterestRate
-        });
+        // If the sum of minimumPay and leftoverBudget exceeds remainingBalance
+        if (minimumPay + leftoverBudget > remainingBalance) {
+            if (remainingBalance > minimumPay + interest) {
+                // Pay minimumPay first, then part of snowball
+                principal = minimumPay - interest; // Use minimumPay
+                const remainingPrincipal = remainingBalance - minimumPay; // Remaining balance after minimumPay
+                principal += Math.min(leftoverBudget, remainingPrincipal); // Use part of snowball if needed
 
-        transactionDate.setMonth(transactionDate.getMonth() + 1);
-        installmentNumber++;
+                remainingBalance -= principal;
+
+                Schedule.push({
+                    installment: installmentNumber,
+                    date: transactionDate.toISOString().split('T')[0],
+                    principalPart: principal.toFixed(2),
+                    interestPart: interest.toFixed(2),
+                    emiToPay: (principal + interest).toFixed(2),
+                    balance: remainingBalance.toFixed(2),
+                    loanName: loan.loanName,
+                    minimumPay: minimumPay.toFixed(2),
+                    snowball: (Math.min(leftoverBudget, remainingPrincipal)).toFixed(2),
+                    annualInterestRate: loan.annualInterestRate
+                });
+
+                // If remaining balance is fully paid, break the loop
+                if (remainingBalance <= 0) {
+                    break;
+                }
+            } else {
+                // Set principal to the remaining balance and complete payment
+                principal = remainingBalance;
+                remainingBalance = 0;
+
+                Schedule.push({
+                    installment: installmentNumber,
+                    date: transactionDate.toISOString().split('T')[0],
+                    principalPart: principal.toFixed(2),
+                    interestPart: interest.toFixed(2),
+                    emiToPay: (principal + interest).toFixed(2),
+                    balance: '0.00', // Remaining balance is paid off
+                    loanName: loan.loanName,
+                    minimumPay: minimumPay.toFixed(2),
+                    snowball: leftoverBudget.toFixed(2),
+                    annualInterestRate: loan.annualInterestRate
+                });
+
+                break; // Exit the loop since the loan is paid off
+            }
+        } else {
+            // Normal case where minimumPay + leftoverBudget is less than remainingBalance
+            principal += leftoverBudget; // Add leftover budget to principal
+
+            remainingBalance -= principal;
+
+            Schedule.push({
+                installment: installmentNumber,
+                date: transactionDate.toISOString().split('T')[0],
+                principalPart: principal.toFixed(2),
+                interestPart: interest.toFixed(2),
+                emiToPay: emiAmount.toFixed(2),
+                balance: remainingBalance.toFixed(2),
+                loanName: loan.loanName,
+                minimumPay: minimumPay.toFixed(2),
+                snowball: leftoverBudget.toFixed(2),
+                annualInterestRate: loan.annualInterestRate
+            });
+
+            transactionDate.setMonth(transactionDate.getMonth() + 1);
+            installmentNumber++;
+        }
     }
 
+    // Handle any remaining balance not covered by the loop
     if (remainingBalance > 0) {
         const interest = remainingBalance * monthlyInterestRate;
         const principal = remainingBalance;
@@ -49,13 +116,20 @@ const calculateAmortization = (loan) => {
             emiToPay: (principal + interest).toFixed(2),
             balance: remainingBalance.toFixed(2),
             loanName: loan.loanName,
-            minimumPay: (principal + interest).toFixed(2) || 0,
+            minimumPay: (principal + interest).toFixed(2),
+            snowball: 0,
             annualInterestRate: loan.annualInterestRate
         });
     }
 
+    console.log('Final Schedule:', Schedule);
+
+
     return Schedule;
 };
+
+
+
 
 const sortByDate = (entries) => {
     return entries.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -79,7 +153,7 @@ const findHighestInterestLoans = (groupedEntries) => {
         const entries = groupedEntries[monthYear];
         const highestLoan = entries.reduce(
             (max, entry) => {
-                if (entry.snowball) return max;
+                if (entry.principalpaid <= 0) return max; // Skip if principal paid is non-positive
                 const interestRate = parseFloat(entry.annualInterestRate || 0);
                 return interestRate > parseFloat(max.annualInterestRate || 0) ? entry : max;
             },
@@ -120,6 +194,8 @@ const CombinedAmortizationPage = () => {
                     const creditAmount = parseFloat(loan.loanAmount);
                     const principalPart = 0 - creditAmount;
 
+                    console.log("predata 0", preData);
+
                     preData.push({
                         date: loan.loanStartDate.split('T')[0],
                         description: `New Loan: ${loan.loanName} Start`,
@@ -128,10 +204,11 @@ const CombinedAmortizationPage = () => {
                         interest: 0,
                         balance: creditAmount,
                         minimumPay: 0,
-                        annualInterestRate: loan.annualInterestRate
+                        annualInterestRate: loan.annualInterestRate,
+                        snowball: 0
                     });
 
-                    const amortizationSchedule = calculateAmortization(loan);
+                    const amortizationSchedule = calculateAmortization(loan, monthlyBudget);
                     amortizationSchedule.forEach(transaction => {
                         preData.push({
                             date: transaction.date,
@@ -141,23 +218,57 @@ const CombinedAmortizationPage = () => {
                             interest: parseFloat(transaction.interestPart),
                             balance: parseFloat(transaction.balance),
                             minimumPay: parseFloat(transaction.minimumPay),
-                            annualInterestRate: loan.annualInterestRate
+                            annualInterestRate: loan.annualInterestRate,
+                            snowball: parseFloat(transaction.snowball),
                         });
                     });
                 });
 
+                console.log("predata 1", preData);
+
                 const groupedEntries = groupByMonth(preData);
                 const highestLoans = findHighestInterestLoans(groupedEntries);
+
+                const monthlyTotals = {};
+                preData.forEach(entry => {
+                    const month = new Date(entry.date).toLocaleString('default', { month: 'long', year: 'numeric' });
+                    if (!monthlyTotals[month]) {
+                        monthlyTotals[month] = 0;
+                    }
+                    monthlyTotals[month] += entry.minimumPay;
+                });
+
+                console.log('Monthly Totals:', monthlyTotals);
+
+
+
+                const budgetComp = {};
+                Object.keys(monthlyTotals).forEach(month => {
+                    budgetComp[month] = {
+                        monthlyTotal: monthlyTotals[month],
+                        difference: monthlyBudget - monthlyTotals[month]
+                    };
+                });
+
+                setBudgetComparison(budgetComp);
 
                 preData = preData.map(entry => {
                     const monthYear = new Date(entry.date).toLocaleString('default', { month: 'long', year: 'numeric' });
                     return {
                         ...entry,
-                        snowball: highestLoans[monthYear] && entry.description.includes(highestLoans[monthYear].description) ? 'I am High' : ''
+                        // snowball: highestLoans[monthYear] && entry.description.includes(highestLoans[monthYear].description) && entry.principalpaid > 0 ? 'I am High' : ''
+                        snowball: highestLoans[monthYear] && entry.description.includes(highestLoans[monthYear].description) && entry.principalpaid > 0 ? `${budgetComp[monthYear].difference.toFixed(2)}` : '0'
+
+                        // snowball: budgetComp[monthYear] ? ` ${budgetComp[monthYear].difference.toFixed(2)}` : '0'
+
                     };
                 });
 
+
                 preData = sortByDate(preData);
+
+                console.log("predata 2", preData);
+
 
                 let totalLoans = 0;
                 const data = preData.map(transaction => {
@@ -175,26 +286,8 @@ const CombinedAmortizationPage = () => {
 
                 setFinalData([...opening, ...data]);
 
-                const monthlyTotals = {};
-                preData.forEach(entry => {
-                    const month = new Date(entry.date).toLocaleString('default', { month: 'long', year: 'numeric' });
-                    if (!monthlyTotals[month]) {
-                        monthlyTotals[month] = 0;
-                    }
-                    monthlyTotals[month] += entry.minimumPay;
-                });
 
-                console.log('Monthly Totals:', monthlyTotals);
 
-                const budgetComp = {};
-                Object.keys(monthlyTotals).forEach(month => {
-                    budgetComp[month] = {
-                        monthlyTotal: monthlyTotals[month],
-                        difference: monthlyBudget - monthlyTotals[month]
-                    };
-                });
-
-                setBudgetComparison(budgetComp);
 
                 console.log('monthlyBudget:', monthlyBudget);
 
@@ -262,7 +355,7 @@ const CombinedAmortizationPage = () => {
                                 <td className="px-4 py-2 border-b text-right">{transaction.interest.toFixed(2)}</td>
                                 <td className="px-4 py-2 border-b text-right">{transaction.emiToPay.toFixed(2)}</td>
                                 <td className="px-4 py-2 border-b text-right">{transaction.minimumPay.toFixed(2)}</td>
-                                <td className="px-4 py-2 border-b text-center">{transaction.snowball}</td> {/* New Column */}
+                                <td className="px-4 py-2 border-b text-center">{transaction.snowball}</td>
                                 <td className="px-4 py-2 border-b text-right">{transaction.balance.toFixed(2)}</td>
                                 <td className="px-4 py-2 border-b text-right">{transaction.totalLoans}</td>
                             </tr>
@@ -275,7 +368,7 @@ const CombinedAmortizationPage = () => {
                 <ul>
                     {Object.keys(budgetComparison).map(month => (
                         <li key={month}>
-                            {month}: Total Pay {budgetComparison[month].monthlyTotal.toFixed(2)}, Difference: {budgetComparison[month].difference.toFixed(2)}
+                            {month}: Total Pay {budgetComparison[month].monthlyTotal.toFixed(2)}, Difference: {budgetComparison[month].difference.toFixed(2)} // write the Difference: here to the table instead of  the "I am High"
                         </li>
                     ))}
                 </ul>
