@@ -72,7 +72,7 @@ const Page = () => {
                         loanName: `New Loan: ${loan.loanName} Start`,
                         minimumPay: 0,
                         interestPart: 0,
-                        principalPart: `- ${loan.loanAmount.toFixed(2)}`,
+                        principalPart: 0 - loan.loanAmount.toFixed(2),
                         balance: loan.loanAmount.toFixed(2),
                         totalMonthlyPayment: 0,
                         remainingBudget: remainingBudget.toFixed(2),
@@ -188,9 +188,25 @@ const Page = () => {
     };
 
 
-
-
     const schedule = calculateAmortization(loan, monthlyBudget);
+
+    let remainingBalance = 0;
+
+    const newSchedule = schedule.map(item => {
+
+        let principal = parseFloat(item.principalPart);
+
+
+        remainingBalance = remainingBalance - principal;
+        console.log(`Remaining Balance: ${remainingBalance}`);
+
+        return {
+            ...item,
+            remainingBalance: remainingBalance.toFixed(2)
+        }
+    });
+
+
 
     console.table(schedule);
 
@@ -201,6 +217,7 @@ const Page = () => {
     const filteredSchedule1 = schedule.filter(item => item.loanName === 'car loan');
     console.table(filteredSchedule1);
 
+    console.table(newSchedule);
 
     return (
         <div>
