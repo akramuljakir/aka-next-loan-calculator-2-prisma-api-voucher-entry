@@ -82,6 +82,8 @@ const Page = () => {
 
                     return { loan, index };
                 } else if (loanDate <= currentMonth && loan.loanAmount > 0) {
+                    // } else if (loanDate <= currentMonth) {
+
                     // console.log(`Loan ${loan.loanName} started on ${loan.loanStartDate} and is in progress ${loan.loanAmount}`);
 
                     return { loan, index }; // Include loans already started but not fully paid off
@@ -89,7 +91,7 @@ const Page = () => {
                 return null;
             }).filter(item => item !== null);
 
-            // console.log(`Loans for Month ${getMonthYearKey(currentMonth)}:`, loansInMonth);
+            console.log(`Loans for Month ${getMonthYearKey(currentMonth)}:`, loansInMonth);
 
             if (loansInMonth.length > 0) {
                 let totalMinimumPay = 0;
@@ -167,9 +169,12 @@ const Page = () => {
 
             currentMonth.setMonth(currentMonth.getMonth() + 1); // Move to the next month
 
-            if (totalMonthlyPayment === 0) {
+            // Check if any loan has a balance greater than 0
+            const hasOutstandingLoan = loans.some(loan => loan.loanAmount > 0);
+            if (!hasOutstandingLoan) {
                 break;
             }
+
 
             // Reset remaining budget for the next month
             remainingBudget = budget;
@@ -196,11 +201,6 @@ const Page = () => {
     const filteredSchedule1 = schedule.filter(item => item.loanName === 'car loan');
     console.table(filteredSchedule1);
 
-    // loan.forEach((schedule) => {
-    //     if (schedule.loanName === 'home loan') {
-    //         console.table(schedule);
-    //     }
-    // });
 
     return (
         <div>
