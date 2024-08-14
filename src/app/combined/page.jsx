@@ -12,6 +12,8 @@ const Page = () => {
     const [monthlyBudget, setMonthlyBudget] = useState(0);
     const [loan, setLoan] = useState([]);
     const [finalData, setFinalData] = useState([]);
+    const [selectedLoan, setSelectedLoan] = useState('');  // State for filtering by loan name
+
 
     useEffect(() => {
         const savedBudget = localStorage.getItem('monthlyBudget');
@@ -57,6 +59,11 @@ const Page = () => {
 
     }, [monthlyBudget, loan]);
 
+    // Function to filter the finalData based on the selected loan
+    const filteredData = selectedLoan
+        ? finalData.filter(item => item.loanName === selectedLoan)  // Filter based on selected loan
+        : finalData;  // If no loan is selected, show all data
+
 
     const getMonthClass = (date) => {
         const currentDate = new Date();
@@ -82,8 +89,35 @@ const Page = () => {
         return classNames;
     };
 
+    // Utility function to format date to '12-Aug-24' format
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = date.toLocaleString('en-US', { month: 'short' });
+        const year = date.getFullYear().toString().slice(-2);  // Get last two digits of the year
+        return `${day}-${month}-${year}`;
+    };
+
+
     return (
         <div className="container mx-auto p-4">
+            <div className="mb-4">
+                <label htmlFor="loanFilter" className="block text-sm font-medium text-gray-700">Filter by Loan Name:</label>
+                <select
+                    id="loanFilter"
+                    className="mt-1 block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    value={selectedLoan}
+                    onChange={(e) => setSelectedLoan(e.target.value)}  // Update selected loan
+                >
+                    <option value="">All Loans</option>
+                    {loan.map((loanItem, index) => (
+                        <option key={index} value={loanItem.loanName}>
+                            {loanItem.loanName}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
             <h1 className="text-2xl font-bold mb-4">All Loans Amortization Schedule</h1>
             <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200">
@@ -92,22 +126,26 @@ const Page = () => {
                             <th className="px-4 py-2 border-b">Sl No</th>
                             <th className="px-4 py-2 border-b">Date</th>
                             <th className="px-4 py-2 border-b">Loan Name</th>
-                            <th className="px-4 py-2 border-b">Principal Part</th>
-                            <th className="px-4 py-2 border-b">Interest Part</th>
-                            <th className="px-4 py-2 border-b">Payments </th>
+
+                            <th className="px-4 py-2 border-b">Minimum Pay </th>
+                            <th className="px-4 py-2 border-b">Interest</th>
+                            <th className="px-4 py-2 border-b">Snow Ball </th>
+                            <th className="px-4 py-2 border-b">Principal</th>
                             <th className="px-4 py-2 border-b">Loan Balance</th>
-                            <th className="px-4 py-2 border-b">Total Loans</th>
+                            <th className="px-4 py-2 border-b">Remaining Loans</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {finalData.map((payment, index) => (
+                        {filteredData.map((payment, index) => (
                             <tr key={index} className={`${getMonthClass(payment.date)}`} >
                                 <td className="px-4 py-2 border-b">{index + 1}</td>
-                                <td className="px-4 py-2 border-b">{payment.date}</td>
+                                <td className="px-4 py-2 border-b">{formatDate(payment.date)}</td>
                                 <td className="px-4 py-2 border-b">{payment.loanName}</td>
-                                <td className="px-4 py-2 border-b">{payment.principalPart}</td>
-                                <td className="px-4 py-2 border-b">{payment.interestPart}</td>
+
                                 <td className="px-4 py-2 border-b">{payment.minimumPay}</td>
+                                <td className="px-4 py-2 border-b">{payment.interestPart}</td>
+                                <td className="px-4 py-2 border-b">{payment.snowBall}</td>
+                                <td className="px-4 py-2 border-b">{payment.principalPart}</td>
                                 <td className="px-4 py-2 border-b">{payment.balance}</td>
                                 <td className="px-4 py-2 border-b">{(Number(payment.remainingBalance) < 0 ? 0 : payment.remainingBalance)}</td>
                             </tr>
