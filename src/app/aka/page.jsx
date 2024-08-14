@@ -52,70 +52,30 @@ const Page = () => {
 
             // Step 1: Pay the minimum EMI for each loan
             loans.forEach((loan) => {
-                // const principal = Math.min(minimumPay - interest, remainingBudget);
-                const interest = calculateMonthlyInterest(loan);
-                const minimumPay = parseFloat(loan.minimumPay);
-                let principal = 0
-                // if (loan.loanAmount + (loan.loanAmount * loan.annualInterestRate) > 0) {
-                if (loan.loanAmount + (loan.loanAmount * loan.annualInterestRate) >= minimumPay) {
-                    // const interest = calculateMonthlyInterest(loan);
-                    // const minimumPay = parseFloat(loan.minimumPay);
-                    principal = Math.min(minimumPay - interest, remainingBudget);
-                    // const principal = (minimumPay - interest);
-
-                    loan.loanAmount -= principal;
-                    // remainingBudget -= (principal + interest);
-                    remainingBudget -= minimumPay;
-                    remainingBalance -= principal;
-                    totalMonthlyPayment += (principal + interest);
-
-                    schedule.push({
-                        date: transactionDate.toISOString().split('T')[0],
-                        principalPart: principal.toFixed(2),
-                        interestPart: interest.toFixed(2),
-                        emiToPay: (principal + interest).toFixed(2),
-                        balance: loan.loanAmount.toFixed(2),
-                        loanName: loan.loanName,
-                        totalMonthlyPayment: totalMonthlyPayment.toFixed(2),
-                        remainingBalance: remainingBalance.toFixed(2),
-                        remainingBudget: remainingBudget.toFixed(2),
-
-                    });
-
-
-
-                } else if (loan.loanAmount + (loan.loanAmount * loan.annualInterestRate) < minimumPay) {
-
-                    // const interest = calculateMonthlyInterest(loan);
-                    // const minimumPay = parseFloat(loan.minimumPay);
-                    principal = Math.min(minimumPay - interest, remainingBudget);
-                    // const principal = (minimumPay - interest);
+                if (loan.loanAmount > 0) {
+                    const interest = calculateMonthlyInterest(loan);
+                    const minimumPay = parseFloat(loan.minimumPay);
+                    const principal = Math.min(minimumPay - interest, remainingBudget);
 
                     loan.loanAmount -= principal;
                     remainingBudget -= (principal + interest);
-                    // remainingBudget -= minimumPay;
                     remainingBalance -= principal;
                     totalMonthlyPayment += (principal + interest);
 
                     schedule.push({
                         date: transactionDate.toISOString().split('T')[0],
+                        loanName: loan.loanName,
                         principalPart: principal.toFixed(2),
                         interestPart: interest.toFixed(2),
-                        emiToPay: (principal + interest).toFixed(2),
+                        minimumPay: (principal + interest).toFixed(2),
                         balance: loan.loanAmount.toFixed(2),
-                        loanName: loan.loanName,
+
                         totalMonthlyPayment: totalMonthlyPayment.toFixed(2),
                         remainingBalance: remainingBalance.toFixed(2),
                         remainingBudget: remainingBudget.toFixed(2),
 
                     });
-
-
-
-
-
                 }
-                // }
             });
 
             // Step 2: If budget remains, allocate to the highest interest loan
@@ -130,11 +90,12 @@ const Page = () => {
 
                         schedule.push({
                             date: transactionDate.toISOString().split('T')[0],
+                            loanName: loan.loanName,
                             principalPart: extraPayment.toFixed(2),
                             interestPart: '0.00',
-                            emiToPay: extraPayment.toFixed(2),
+                            minimumPay: extraPayment.toFixed(2),
                             balance: loan.loanAmount.toFixed(2),
-                            loanName: loan.loanName,
+
                             totalMonthlyPayment: totalMonthlyPayment.toFixed(2),
                             remainingBalance: remainingBalance.toFixed(2),
                             remainingBudget: remainingBudget.toFixed(2),
@@ -153,7 +114,6 @@ const Page = () => {
             remainingBudget = budget;
 
 
-
             // If no payments could be made, break the loop to avoid infinite looping
             if (totalMonthlyPayment === 0) {
                 break;
@@ -162,6 +122,8 @@ const Page = () => {
 
         return schedule;
     };
+
+
 
     const schedule = calculateAmortization(loan, monthlyBudget);
 
