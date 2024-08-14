@@ -129,8 +129,6 @@ const calculateAmortization = (loan, monthlyBudget) => {
 };
 
 
-
-
 const sortByDate = (entries) => {
     return entries.sort((a, b) => new Date(a.date) - new Date(b.date));
 };
@@ -187,6 +185,10 @@ const CombinedAmortizationPage = () => {
                 }
                 const result = await response.json();
                 setLoans(result.data);
+
+                console.log('result.data', result.data);
+
+
 
                 let preData = [];
 
