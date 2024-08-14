@@ -8,20 +8,22 @@ const calculateAmortization = (loans, budget) => {
     const schedule = [];
     let remainingBudget = budget;
 
-    loans.sort((a, b) => new Date(a.loanStartDate) - new Date(b.loanStartDate)); // Sort loans by start date
+    // Sort loans by start date
+    loans.sort((a, b) => new Date(a.loanStartDate) - new Date(b.loanStartDate));
 
+    // Function to calculate monthly interest for a loan
     const calculateMonthlyInterest = (loan) => {
         const monthlyInterestRate = parseFloat(loan.annualInterestRate) / 12 / 100;
         return loan.loanAmount * monthlyInterestRate;
     };
 
     const loanTransactionDates = loans.map(loan => new Date(loan.loanStartDate));
-
     const getMonthYearKey = (date) => `${date.getFullYear()}-${date.getMonth() + 1}`;
 
-    let currentMonth = new Date(Math.min(...loanTransactionDates.map(date => date.getTime()))); // Start from the earliest loan date
+    // Start from the earliest loan date
+    let currentMonth = new Date(Math.min(...loanTransactionDates.map(date => date.getTime())));
 
-    // Track which loans have already started to prevent adding multiple "New Loan Start" entries
+    // Track loans that have started
     const loansStarted = new Set();
 
     while (remainingBudget > 0) {
@@ -30,12 +32,14 @@ const calculateAmortization = (loans, budget) => {
         // Filter loans that have started by the current month
         const loansInMonth = loans.map((loan, index) => {
             const loanDate = loanTransactionDates[index];
+
+            // When the loan starts, add an entry, but defer the payment to the next month
             if (
                 loanDate.getFullYear() === currentMonth.getFullYear() &&
                 loanDate.getMonth() === currentMonth.getMonth() &&
                 !loansStarted.has(loan.id)
             ) {
-                // Add initial loan entry to the schedule
+                // Add loan start entry
                 schedule.push({
                     date: loan.loanStartDate.split('T')[0],
                     loanName: `New Loan: ${loan.loanName} Start`,
@@ -49,13 +53,11 @@ const calculateAmortization = (loans, budget) => {
 
                 loansStarted.add(loan.id); // Mark this loan as started
 
-                return { loan, index };
+                // Defer first payment to next month
+                loanTransactionDates[index].setMonth(loanTransactionDates[index].getMonth() + 1);
+                return null;  // Skip payment for this month
             } else if (loanDate <= currentMonth && loan.loanAmount > 0) {
-                // } else if (loanDate <= currentMonth) {
-
-                // console.log(`Loan ${loan.loanName} started on ${loan.loanStartDate} and is in progress ${loan.loanAmount}`);
-
-                return { loan, index }; // Include loans already started but not fully paid off
+                return { loan, index };  // Loans already started but not fully paid off
             }
             return null;
         }).filter(item => item !== null);
@@ -64,7 +66,9 @@ const calculateAmortization = (loans, budget) => {
 
         if (loansInMonth.length > 0) {
             let totalMinimumPay = 0;
-            loansInMonth.forEach(({ loan, index }) => {
+
+            // Calculate total minimum payment and apply payments
+            loansInMonth.forEach(({ loan }) => {
                 if (loan.loanAmount > 0) {
                     const interest = calculateMonthlyInterest(loan);
                     const minimumPay = parseFloat(loan.minimumPay);
@@ -74,11 +78,8 @@ const calculateAmortization = (loans, budget) => {
                 }
             });
 
-            // console.log(` Month: ${getMonthYearKey(currentMonth)}, Total Minimum Pay: ${totalMinimumPay}`);
-
+            // Deduct payments from the remaining budget if there's enough budget
             if (remainingBudget >= totalMinimumPay) {
-                // if (remainingBudget > 0) {
-
                 loansInMonth.forEach(({ loan, index }) => {
                     if (loan.loanAmount > 0) {
                         const interest = calculateMonthlyInterest(loan);
@@ -102,9 +103,10 @@ const calculateAmortization = (loans, budget) => {
                     }
                 });
             } else {
-                break;
+                break;  // Stop if remaining budget is insufficient to cover total payments
             }
 
+            // Apply extra payments if there’s remaining budget
             if (remainingBudget > 0) {
                 loansInMonth.sort((a, b) => parseFloat(b.loan.annualInterestRate) - parseFloat(a.loan.annualInterestRate));
                 for (const { loan, index } of loansInMonth) {
@@ -127,30 +129,31 @@ const calculateAmortization = (loans, budget) => {
                             remainingBudget: remainingBudget.toFixed(2),
                         });
 
-                        break;
+                        break;  // Apply extra payment to one loan and move to the next month
                     }
                 }
             }
 
+            // Increment the month for each loan's next payment date
             loansInMonth.forEach(({ index }) => {
                 loanTransactionDates[index].setMonth(loanTransactionDates[index].getMonth() + 1);
             });
         }
 
-        currentMonth.setMonth(currentMonth.getMonth() + 1); // Move to the next month
+        // Move to the next month
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
 
-        // Check if any loan has a balance greater than 0
+        // Check if there are any outstanding loans
         const hasOutstandingLoan = loans.some(loan => loan.loanAmount > 0);
         if (!hasOutstandingLoan) {
-            break;
+            break;  // Stop if all loans are paid off
         }
 
-
-        // Reset remaining budget for the next month
+        // Reset the remaining budget for the next month
         remainingBudget = budget;
     }
 
-    schedule.sort((a, b) => new Date(a.date) - new Date(b.date));
+    schedule.sort((a, b) => new Date(a.date) - new Date(b.date));  // Sort schedule by date
 
     console.log('Final Schedule:', schedule);
 
