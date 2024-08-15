@@ -1,211 +1,155 @@
-// // src/app/loans/[id]
+'use client';
 
-// 'use client';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';  // Import useParams from next/navigation
+import calculateAmortization from '@/lib/calculateAmortization';
 
-// import { useState, useEffect, useMemo } from 'react';
-// import Amortization from '@/components/Amortization';
+const Page = () => {
+    const { id } = useParams();  // Get the loanId from the URL
+    const [monthlyBudget, setMonthlyBudget] = useState(0);
+    const [loans, setLoans] = useState([]);
+    const [finalData, setFinalData] = useState([]);
+    const [selectedLoan, setSelectedLoan] = useState('');  // State for filtering by loan name
 
-// const Page = ({ params }) => {
-//     const [loans, setLoans] = useState([]);
-//     const [loan, setLoan] = useState(null);
-//     const [currentBalance, setCurrentBalance] = useState(null);
-//     const [monthsLeft, setMonthsLeft] = useState(null);
-//     const [totalEmiPaid, setTotalEmiPaid] = useState(0);
-//     const [totalInterestPaid, setTotalInterestPaid] = useState(0);
-//     const [totalCapital, setTotalCapital] = useState(0);
-//     const [currentMonth, setCurrentMonth] = useState('');
-//     const [loanEndMonth, setLoanEndMonth] = useState('');
-//     const [emIsPaid, setEmIsPaid] = useState(0); // State for number of EMIs paid
+    useEffect(() => {
+        const savedBudget = localStorage.getItem('monthlyBudget');
+        if (savedBudget) {
+            setMonthlyBudget(parseFloat(savedBudget));
+        }
+    }, []);
 
-//     // Fetching loans
-//     useEffect(() => {
-//         async function getLoans() {
-//             try {
-//                 const response = await fetch("/api/loans");
-//                 const data = await response.json();
-//                 setLoans(data.data);
-//             } catch (error) {
-//                 console.error("Failed to fetch loans", error);
-//             }
-//         }
-//         getLoans();
-//     }, []);
+    useEffect(() => {
+        const fetchLoans = async () => {
+            const response = await fetch('/api/loans');
+            const result = await response.json();
+            setLoans(result.data);
+        };
 
-//     // Setting loan based on selected params.id or selected from dropdown
-//     useEffect(() => {
-//         if (params.id && loans.length > 0) {
-//             const selectedLoan = loans.find(loan => loan.id === parseInt(params.id));
-//             setLoan(selectedLoan || null);
-//         }
-//     }, [params.id, loans]);
+        if (monthlyBudget !== 0) {
+            fetchLoans();
+        }
+    }, [monthlyBudget]);
 
-//     // Perform calculations when loan is set
-//     useEffect(() => {
-//         if (loan) {
-//             calculateCurrentBalance();
-//             calculateMonthsLeft();
-//             calculateTotalEmiPaid();
-//             calculateTotalInterestPaid();
-//             setCurrentMonth(new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
-//         }
-//     }, [loan]);
+    useEffect(() => {
+        const schedule = calculateAmortization(loans, monthlyBudget);
+        let remainingBalance = 0;
 
-//     // Loan end month calculation based on months left
-//     useEffect(() => {
-//         if (monthsLeft !== null) {
-//             calculateLoanEndMonth();
-//         }
-//     }, [monthsLeft]);
+        const finalData = schedule.map(item => {
+            let principal = parseFloat(item.principalPart);
+            remainingBalance = remainingBalance - principal;
+            console.log(`Remaining Balance: ${remainingBalance}`);
 
-//     // Loan Selector Dropdown
-//     const handleChange = (event) => {
-//         const selectedLoanId = parseInt(event.target.value);
-//         const selectedLoan = loans.find(loan => loan.id === selectedLoanId);
-//         setLoan(selectedLoan);
-//     };
+            return {
+                ...item,
+                remainingBalance: remainingBalance.toFixed(2)
+            };
+        });
 
-//     // Calculations - ensure they are memoized when necessary
-//     const calculateCurrentBalance = () => {
-//         if (!loan) return;
-//         const monthlyInterestRate = parseFloat(loan.annualInterestRate) / 12 / 100;
-//         const emiAmount = parseFloat(loan.emiAmount);
-//         const loanStartDate = new Date(loan.loanStartDate);
-//         const currentDate = new Date();
-//         const monthsElapsed = Math.floor((currentDate - loanStartDate) / (1000 * 60 * 60 * 24 * 30));
+        setFinalData(finalData);
+        console.table(finalData);
+    }, [monthlyBudget, loans]);
 
-//         let remainingBalance = parseFloat(loan.loanAmount);
-//         for (let i = 0; i < monthsElapsed; i++) {
-//             const interest = remainingBalance * monthlyInterestRate;
-//             const principal = emiAmount - interest;
-//             remainingBalance -= principal;
-//         }
+    // Preselect a loan based on the id from useParams
+    useEffect(() => {
+        if (id && loans.length > 0) {
+            const loan = loans.find((loanItem) => loanItem.id === parseInt(id));
+            if (loan) {
+                setSelectedLoan(loan.loanName);  // Pre-select the loan
+            }
+        }
+    }, [loans, id]);
 
-//         setCurrentBalance(remainingBalance.toFixed(2));
-//     };
+    // Filter finalData based on selected loan
+    const filteredData = selectedLoan
+        ? finalData.filter(item => item.loanName === selectedLoan)  // Filter based on selected loan
+        : finalData;  // If no loan is selected, show all data
 
-//     const calculateMonthsLeft = () => {
-//         if (!loan) return;
-//         const monthlyInterestRate = parseFloat(loan.annualInterestRate) / 12 / 100;
-//         const emiAmount = parseFloat(loan.emiAmount);
-//         let remainingBalance = parseFloat(loan.loanAmount);
-//         let monthsLeft = 0;
+    const getMonthClass = (date) => {
+        const currentDate = new Date();
+        const entryDate = new Date(date);
+        const month = entryDate.getMonth();
+        const year = entryDate.getFullYear();
 
-//         while (remainingBalance > emiAmount) {
-//             const interest = remainingBalance * monthlyInterestRate;
-//             const principal = emiAmount - interest;
-//             remainingBalance -= principal;
-//             monthsLeft++;
-//         }
+        const colors = [
+            'bg-red-200', 'bg-cyan-200',   // January & February
+            'bg-orange-200', 'bg-blue-200', // March & April
+            'bg-yellow-200', 'bg-purple-200', // May & June
+            'bg-green-200', 'bg-pink-200',   // July & August
+            'bg-sky-200', 'bg-rose-200',    // September & October
+            'bg-indigo-200', 'bg-lime-200'   // November & December
+        ];
+        let classNames = colors[month % colors.length];
 
-//         if (remainingBalance > 0) {
-//             monthsLeft++;
-//         }
+        if (month === currentDate.getMonth() && year === currentDate.getFullYear()) {
+            classNames += ' font-black';
+        }
 
-//         setMonthsLeft(monthsLeft);
-//     };
+        return classNames;
+    };
 
-//     const calculateTotalEmiPaid = () => {
-//         if (!loan) return;
-//         const emiAmount = parseFloat(loan.emiAmount);
-//         const loanStartDate = new Date(loan.loanStartDate);
-//         const currentDate = new Date();
-//         const monthsElapsed = Math.floor((currentDate - loanStartDate) / (1000 * 60 * 60 * 24 * 30));
+    // Utility function to format date to '12-Aug-24' format
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = date.toLocaleString('en-US', { month: 'short' });
+        const year = date.getFullYear().toString().slice(-2);  // Get last two digits of the year
+        return `${day}-${month}-${year}`;
+    };
 
-//         let totalPaid = emiAmount * monthsElapsed;
-//         setTotalEmiPaid(totalPaid.toFixed(2));
-//         setEmIsPaid(monthsElapsed); // Update number of EMIs paid
-//     };
-
-//     const calculateTotalInterestPaid = () => {
-//         if (!loan) return;
-//         const monthlyInterestRate = parseFloat(loan.annualInterestRate) / 12 / 100;
-//         const emiAmount = parseFloat(loan.emiAmount);
-//         const loanStartDate = new Date(loan.loanStartDate);
-//         const currentDate = new Date();
-//         const monthsElapsed = Math.floor((currentDate - loanStartDate) / (1000 * 60 * 60 * 24 * 30));
-
-//         let totalInterest = 0;
-//         let remainingBalance = parseFloat(loan.loanAmount);
-//         for (let i = 0; i < monthsElapsed; i++) {
-//             const interest = remainingBalance * monthlyInterestRate;
-//             totalInterest += interest;
-//             const principal = emiAmount - interest;
-//             remainingBalance -= principal;
-//         }
-
-//         setTotalInterestPaid(totalInterest.toFixed(2));
-//     };
-
-//     // Memoized total capital calculation
-//     useMemo(() => {
-//         if (!loan || totalEmiPaid === 0 || totalInterestPaid === 0) return;
-//         const totalPaid = parseFloat(totalEmiPaid) - parseFloat(totalInterestPaid);
-//         setTotalCapital(totalPaid.toFixed(2));
-//     }, [totalEmiPaid, totalInterestPaid]);
-
-//     const calculateLoanEndMonth = () => {
-//         if (!loan || monthsLeft === null) return;
-//         const loanStartDate = new Date(loan.loanStartDate);
-//         const loanEndDate = new Date(loanStartDate.setMonth(loanStartDate.getMonth() + monthsLeft));
-//         setLoanEndMonth(loanEndDate.toLocaleString('default', { month: 'long', year: 'numeric' }));
-//     };
-
-//     if (!loan) {
-//         return <div>Loading...</div>;
-//     }
-
-//     return (
-//         <div className="container mx-auto p-4">
-//             <h1 className="text-2xl font-bold mb-4">{loan.loanName}</h1>
-//             <div className="mb-4">
-//                 <label htmlFor="loanSelect" className="mr-2">Change Loan:</label>
-//                 <select id="loanSelect" onChange={handleChange} className="p-2 border rounded">
-//                     {loans.map((loan) => (
-//                         <option key={loan.id} value={loan.id}>{loan.loanName}</option>
-//                     ))}
-//                 </select>
-//             </div>
-//             <div className="grid grid-cols-3 gap-4 bg-white p-4 rounded-lg shadow-md border">
-//                 <div>
-//                     <h2 className="text-xl font-semibold mb-2">Sanctioned Loan details</h2>
-//                     <p><strong>Loan Amount:</strong> {loan.loanAmount}</p>
-//                     <p><strong>Interest Rate:</strong> {loan.annualInterestRate}%</p>
-//                     <p><strong>EMI Amount:</strong> {loan.emiAmount}</p>
-//                     <p><strong>Total EMI Number:</strong> {monthsLeft}</p>
-//                     <p><strong>Loan Start Date:</strong> {new Date(loan.loanStartDate).toLocaleDateString('default', { month: 'long', year: 'numeric' })}</p>
-//                     <p><strong>Loan End Date:</strong> {loanEndMonth}</p>
-//                     <p><strong>Total Payment:</strong> {(parseFloat(loan.loanAmount) + parseFloat(totalInterestPaid)).toFixed(2)}</p>
-//                 </div>
-//                 <div>
-//                     <h2 className="text-xl font-semibold mb-2">Current Details</h2>
-//                     <p><strong>Current Date:</strong> {new Date().toLocaleDateString('default', { month: 'long', year: 'numeric' })}</p>
-//                     <p><strong>Current Balance:</strong> {currentBalance || 'Calculating...'}</p>
-//                     <p><strong>Total Capital Paid:</strong> {totalCapital}</p>
-//                     <p><strong>Total Interest Paid:</strong> {totalInterestPaid}</p>
-//                     <p><strong>Total Amount Paid:</strong> {totalEmiPaid}</p>
-//                     <p><strong>Number of EMI Paid:</strong> {emIsPaid}</p>
-//                     <p><strong>Months Left:</strong> {monthsLeft !== null ? (monthsLeft - emIsPaid) : 'Calculating...'}</p>
-//                 </div>
-//                 <div>
-//                     <h2 className="text-xl font-semibold mb-2">Estimated Closing Details</h2>
-//                     <p><strong>Loan End Date:</strong> {loanEndMonth}</p>
-//                 </div>
-//             </div>
-//             <div className="mt-4">
-//                 <Amortization loan={loan} currentMonth={currentMonth} />
-//             </div>
-//         </div>
-//     );
-// };
-
-// export default Page;
-
-import React from 'react'
-
-const page = () => {
     return (
-        <div>page</div>
-    )
-}
+        <div className="container mx-auto p-4">
+            <div className="mb-4">
+                <label htmlFor="loanFilter" className="block text-sm font-medium text-gray-700">Filter by Loan Name:</label>
+                <select
+                    id="loanFilter"
+                    className="mt-1 block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    value={selectedLoan}
+                    onChange={(e) => setSelectedLoan(e.target.value)}  // Update selected loan
+                >
+                    <option value="">All Loans</option>
+                    {loans.map((loanItem, index) => (
+                        <option key={index} value={loanItem.loanName}>
+                            {loanItem.loanName}
+                        </option>
+                    ))}
+                </select>
+            </div>
 
-export default page
+            <h1 className="text-2xl font-bold mb-4">All Loans Amortization Schedule</h1>
+            <div className="overflow-x-auto">
+                <table className="min-w-full bg-white border border-gray-200">
+                    <thead>
+                        <tr>
+                            <th className="px-4 py-2 border-b">Sl No</th>
+                            <th className="px-4 py-2 border-b">Date</th>
+                            <th className="px-4 py-2 border-b">Loan Name</th>
+                            <th className="px-4 py-2 border-b">Minimum Pay</th>
+                            <th className="px-4 py-2 border-b">Interest</th>
+                            <th className="px-4 py-2 border-b">Snow Ball</th>
+                            <th className="px-4 py-2 border-b">Principal</th>
+                            <th className="px-4 py-2 border-b">Loan Balance</th>
+                            <th className="px-4 py-2 border-b">Remaining Loans</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredData.map((payment, index) => (
+                            <tr key={index} className={`${getMonthClass(payment.date)}`}>
+                                <td className="px-4 py-2 border-b">{index + 1}</td>
+                                <td className="px-4 py-2 border-b">{formatDate(payment.date)}</td>
+                                <td className="px-4 py-2 border-b">{payment.loanName}</td>
+                                <td className="px-4 py-2 border-b">{payment.minimumPay}</td>
+                                <td className="px-4 py-2 border-b">{payment.interestPart}</td>
+                                <td className="px-4 py-2 border-b">{payment.snowBall}</td>
+                                <td className="px-4 py-2 border-b">{payment.principalPart}</td>
+                                <td className="px-4 py-2 border-b">{payment.balance}</td>
+                                <td className="px-4 py-2 border-b">{(Number(payment.remainingBalance) < 0 ? 0 : payment.remainingBalance)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+export default Page;
