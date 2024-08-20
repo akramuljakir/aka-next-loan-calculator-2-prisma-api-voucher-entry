@@ -80,7 +80,7 @@ const Page = () => {
     }, [loans, id]);
 
     const filteredData = selectedLoan
-        ? finalData.filter(item => item.loanName === selectedLoan)
+        ? finalData.filter(item => item.id.toString() === selectedLoan)
         : finalData;
 
     const getMonthClass = (date) => {
@@ -170,7 +170,7 @@ const Page = () => {
                 >
                     <option value="">All Loans</option>
                     {loans.map((loanItem, index) => (
-                        <option key={index} value={loanItem.loanName}>
+                        <option key={index} value={loanItem.id}>
                             {loanItem.loanName}
                         </option>
                     ))}

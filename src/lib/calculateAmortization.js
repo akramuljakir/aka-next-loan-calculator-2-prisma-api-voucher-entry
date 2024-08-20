@@ -41,6 +41,7 @@ const calculateAmortization = (loans, budget) => {
             ) {
                 // Add loan start entry
                 schedule.push({
+                    id: loan.id,
                     date: loan.loanStartDate.split('T')[0],
                     loanName: `New Loan: ${loan.loanName} Start`,
                     minimumPay: '',
@@ -91,6 +92,7 @@ const calculateAmortization = (loans, budget) => {
                         totalMonthlyPayment += (principal + interest);
 
                         schedule.push({
+                            id: loan.id,
                             date: loanTransactionDates[index].toISOString().split('T')[0],
                             loanName: loan.loanName,
                             principalPart: principal.toFixed(2),
@@ -118,6 +120,7 @@ const calculateAmortization = (loans, budget) => {
                         totalMonthlyPayment += extraPayment;
 
                         schedule.push({
+                            id: loan.id,
                             date: loanTransactionDates[index].toISOString().split('T')[0],
                             loanName: loan.loanName,
                             principalPart: extraPayment.toFixed(2),

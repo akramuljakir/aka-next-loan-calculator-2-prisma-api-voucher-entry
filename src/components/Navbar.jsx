@@ -25,21 +25,7 @@ const links = [
     title: "snowball",
     url: "/snowball",
   },
-  {
-    id: 5,
-    title: "test",
-    url: "/test",
-  },
-  {
-    id: 6,
-    title: "test1",
-    url: "/test1",
-  },
-  {
-    id: 7,
-    title: "aka",
-    url: "/aka",
-  },
+
 ];
 
 const Navbar = () => {

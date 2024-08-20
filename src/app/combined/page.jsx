@@ -61,7 +61,7 @@ const Page = () => {
 
     // Function to filter the finalData based on the selected loan
     const filteredData = selectedLoan
-        ? finalData.filter(item => item.loanName === selectedLoan)  // Filter based on selected loan
+        ? finalData.filter(item => item.id.toString() === selectedLoan)  // Filter based on selected loan
         : finalData;  // If no loan is selected, show all data
 
 
@@ -111,7 +111,7 @@ const Page = () => {
                 >
                     <option value="">All Loans</option>
                     {loan.map((loanItem, index) => (
-                        <option key={index} value={loanItem.loanName}>
+                        <option key={index} value={loanItem.id}>
                             {loanItem.loanName}
                         </option>
                     ))}
